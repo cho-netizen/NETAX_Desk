@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NETAX Workspace 1.7</title>
+<style>
+:root{--bg:#eef1f5;--btn:#d8dde5;--btnh:#c8d0db;--btna:#b8c2d0;--border:#aeb7c4;--text:#111827;--muted:#4b5563;--link:#f3f5f8;--linkh:#dfe5ee;--accent:#1f2937;--gold:#b08d2f}
+*{box-sizing:border-box} body{margin:0;font-family:"Malgun Gothic","Apple SD Gothic Neo",Arial,sans-serif;background:var(--bg);color:var(--text)}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 24px 48px}
+header{background:#f7f8fa;border:1px solid var(--border);border-top:5px solid var(--accent);border-radius:10px;padding:24px 26px;box-shadow:0 4px 14px rgba(17,24,39,.08);margin-bottom:22px}
+h1{margin:0;font-size:30px;font-weight:800;letter-spacing:-.03em}.sub{margin-top:7px;color:var(--muted);font-size:15px;font-weight:600}
+.search{margin-top:20px;width:100%;height:48px;border:1px solid #9ca3af;border-radius:8px;font-size:18px;padding:0 16px;outline:none;background:#fff;color:var(--text);font-weight:600}
+.search:focus{border-color:#374151;box-shadow:0 0 0 3px rgba(55,65,81,.15)}.hint{margin-top:10px;color:#6b7280;font-size:13px}
+.folders{display:grid;grid-template-columns:1fr;gap:10px}.folder{border:1px solid var(--border);border-radius:9px;overflow:hidden;background:#fff;box-shadow:0 2px 7px rgba(17,24,39,.05)}
+.folder-btn{width:100%;border:0;background:var(--btn);color:var(--text);padding:16px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-size:20px;font-weight:800;text-align:left}
+.folder-btn:hover{background:var(--btnh)}.folder.open .folder-btn{background:var(--btna);border-bottom:1px solid var(--border)}.folder.pinned .folder-btn{box-shadow:inset 4px 0 0 var(--gold)}
+.folder-left{display:flex;align-items:center;gap:12px}.folder-icon{font-size:23px;width:30px;text-align:center}.folder-meta{font-size:15px;color:#374151;font-weight:800}
+.pin-badge{display:none;margin-left:10px;padding:3px 7px;border-radius:5px;background:#374151;color:white;font-size:12px}.folder.pinned .pin-badge{display:inline-block}
+.panel{display:none;padding:16px;background:#fff}.folder.open .panel{display:block}.link-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.link-item{display:block;min-height:48px;padding:13px 14px;border:1px solid #c5ccd6;border-radius:7px;background:var(--link);color:#111827;text-decoration:none;font-size:18px;font-weight:700;line-height:1.25}
+.link-item:hover{background:var(--linkh);border-color:#9ca3af;text-decoration:underline}.hidden{display:none!important}.no-result{display:none;margin-top:18px;padding:18px;border:1px dashed #9ca3af;border-radius:8px;background:#fff;color:#374151;font-weight:700}
+@media(max-width:720px){.wrap{padding:18px 12px 32px}h1{font-size:25px}.folder-btn{font-size:18px;padding:15px 14px}.folder-meta{font-size:13px}.link-grid{grid-template-columns:1fr}.link-item{font-size:17px}}
+
+.doc-panel {
+  background: #f9fafb;
+  border: 1px solid #c5ccd6;
+  border-radius: 8px;
+  padding: 20px 24px;
+  font-size: 17px;
+  line-height: 1.65;
+  color: #111827;
+}
+.doc-panel h2 {
+  margin: 0 0 8px;
+  font-size: 26px;
+  font-weight: 900;
+}
+.doc-panel h3 {
+  margin: 24px 0 8px;
+  font-size: 20px;
+  font-weight: 900;
+  border-left: 5px solid #b08d2f;
+  padding-left: 10px;
+}
+.doc-panel ul {
+  margin: 8px 0 0 20px;
+  padding: 0;
+}
+.doc-panel li {
+  margin: 5px 0;
+}
+
+
+.guide-link {
+  float: right;
+  display: inline-block;
+  margin-top: 2px;
+  padding: 9px 14px;
+  border: 1px solid #9ca3af;
+  border-radius: 7px;
+  background: #d8dde5;
+  color: #111827;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 800;
+}
+.guide-link:hover {
+  background: #c8d0db;
+  text-decoration: underline;
+}
+</style>
+</head>
+<body><div class="wrap"><header><h1>NETAX Workspace <span style="font-size:18px;color:#6b7280;">v1.7</span></h1><a class="guide-link" href="NETAX_Workspace_Guide_v1_2.html" rel="noopener noreferrer" target="_blank">📖 Guide</a><div class="sub">북마크 기반 업무 런처 · 마우스 올림: 임시 펼침 · 클릭: 고정 · Guide는 별도 파일</div><input autocomplete="off" class="search" id="search" placeholder="검색어 입력: 홈택스, 양도, Claude, Drive..." type="search"/><div class="hint">검색 중에는 해당 항목이 있는 폴더만 표시됩니다.</div></header><main class="folders" id="folders">
+<section class="folder" data-folder="ai">
+<button aria-expanded="false" class="folder-btn" type="button">
+<span class="folder-left"><span class="folder-icon">🤖</span><span class="folder-name">AI</span></span>
+<span class="folder-meta">8개 <span class="pin-badge">고정</span></span>
+</button>
+<div class="panel"><div class="link-grid"><a class="link-item" href="https://chatgpt.com/?utm_source=google&amp;utm_medium=paid_search&amp;utm_campaign=GOOG_C_SEM_GBR_Core_CHT_BAU_ACQ_PER_MIX_ALL_APAC_KR_KO_120624&amp;c_id=21990694068&amp;c_agid=183521100387&amp;c_crid=793872436076&amp;c_kwid=kwd-1928885899585&amp;c_ims=&amp;c_pms=1009845&amp;c_nw=g&amp;c_dvc=c&amp;gad_source=1&amp;gad_campaignid=21990694068&amp;gclid=CjwKCAjwl97RBhBWEiwAa9rbXQskURWqGeXI7UZ_3FkE6bCJ-f7Y6KU0AZp60BTpXW9vtABKQlL5LBoC3_AQAvD_BwE" rel="noopener noreferrer" target="_blank">ChatGPT</a><a class="link-item" href="https://claude.ai/new" rel="noopener noreferrer" target="_blank">Claude</a><a class="link-item" href="https://copilot.microsoft.com/" rel="noopener noreferrer" target="_blank">Copilot</a><a class="link-item" href="https://gemini.google.com/app?is_sa=1&amp;is_sa=1&amp;android-min-version=301356232&amp;ios-min-version=322.0&amp;campaign_id=bkws&amp;utm_source=sem&amp;utm_medium=paid-media&amp;utm_campaign=bkws&amp;pt=9008&amp;mt=8&amp;ct=p-growth-sem-bkws&amp;gclsrc=aw.ds&amp;gad_source=1&amp;gad_campaignid=20437330476&amp;gclid=CjwKCAjw6f3RBhApEiwAMaCqWYurEGcAM-ONJAGXmditWyc2s_qOLyrHfaY14HjSBz4V99J8izi-8xoCXO4QAvD_BwE" rel="noopener noreferrer" target="_blank">Gemini</a><a class="link-item" href="https://aistudio.google.com/prompts/new_chat" rel="noopener noreferrer" target="_blank">Google AI Studio</a><a class="link-item" href="https://grok.com/" rel="noopener noreferrer" target="_blank">Grok</a><a class="link-item" href="https://notebooklm.google.com/notebook/170fc932-0898-4589-b108-4f8936e364a1" rel="noopener noreferrer" target="_blank">NotebookLM</a><a class="link-item" href="https://www.perplexity.ai/?login-source=oneTapHome&amp;login-new=true" rel="noopener noreferrer" target="_blank">Perplexity</a></div></div>
+</section><section class="folder" data-folder="google">
+<button aria-expanded="false" class="folder-btn" type="button">
+<span class="folder-left"><span class="folder-icon">🌐</span><span class="folder-name">Google</span></span>
+<span class="folder-meta">11개 <span class="pin-badge">고정</span></span>
+</button>
+<div class="panel"><div class="link-grid"><a class="link-item" href="https://www.google.com/?hl=ko" rel="noopener noreferrer" target="_blank">Google</a><a class="link-item" href="https://calendar.google.com/calendar/u/0/r" rel="noopener noreferrer" target="_blank">Google Calendar</a><a class="link-item" href="https://colab.research.google.com/?hl=ko" rel="noopener noreferrer" target="_blank">Google Colab</a><a class="link-item" href="https://contacts.google.com/" rel="noopener noreferrer" target="_blank">Google Contacts</a><a class="link-item" href="https://keep.google.com/" rel="noopener noreferrer" target="_blank">Google Keep</a><a class="link-item" href="https://mail.google.com/mail/u/0/#inbox" rel="noopener noreferrer" target="_blank">Google Mail</a><a class="link-item" href="https://meet.google.com/landing?hs=197&amp;authuser=0&amp;pli=1" rel="noopener noreferrer" target="_blank">Google Meet</a><a class="link-item" href="https://support.google.com/messages/?hl=ko#topic=7502209" rel="noopener noreferrer" target="_blank">Google Message</a><a class="link-item" href="https://docs.google.com/spreadsheets/u/0/" rel="noopener noreferrer" target="_blank">Google Sheets</a><a class="link-item" href="https://docs.google.com/presentation/u/0/" rel="noopener noreferrer" target="_blank">Google Slides</a><a class="link-item" href="https://tasks.google.com/tasks/?utm_source=OGB&amp;utm_medium=app" rel="noopener noreferrer" target="_blank">Google Task</a></div></div>
+</section><section class="folder" data-folder="storage cloud drive koofr multcloud"><button aria-expanded="false" class="folder-btn" type="button"><span class="folder-left"><span class="folder-icon">💾</span><span class="folder-name">Storage</span></span><span class="folder-meta">8개 <span class="pin-badge">고정</span></span></button><div class="panel"><div class="link-grid"><a class="link-item" href="https://app.box.com" rel="noopener noreferrer" target="_blank">Box</a><a class="link-item" href="https://www.dropbox.com" rel="noopener noreferrer" target="_blank">Dropbox</a><a class="link-item" href="https://drive.google.com" rel="noopener noreferrer" target="_blank">Google Drive</a><a class="link-item" href="https://app.koofr.net" rel="noopener noreferrer" target="_blank">Koofr</a><a class="link-item" href="https://mega.nz" rel="noopener noreferrer" target="_blank">MEGA</a><a class="link-item" href="https://www.multcloud.com" rel="noopener noreferrer" target="_blank">MultCloud</a><a class="link-item" href="https://onedrive.live.com" rel="noopener noreferrer" target="_blank">OneDrive</a><a class="link-item" href="https://my.pcloud.com" rel="noopener noreferrer" target="_blank">pCloud</a></div></div></section><section class="folder" data-folder="고객관리">
+<button aria-expanded="false" class="folder-btn" type="button">
+<span class="folder-left"><span class="folder-icon">👥</span><span class="folder-name">고객관리</span></span>
+<span class="folder-meta">7개 <span class="pin-badge">고정</span></span>
+</button>
+<div class="panel"><div class="link-grid"><a class="link-item" href="https://docs.google.com/spreadsheets/d/1wDt1bYDFMfQq6ziABzEDIdfuxg1htT-GOkrIAgUZ87Y/edit?gid=1941412422#gid=1941412422" rel="noopener noreferrer" target="_blank">JobSchedule - Google Sheets</a><a class="link-item" href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ0J0BgLtP9pMfeK9OEnVxjBMrYt05lSv5vfI0As07EUH6TFbH0LNkxB_-ETsIjjZ53XSAsbI7gy" rel="noopener noreferrer" target="_blank">구글세무상담예약</a><a class="link-item" href="https://new.smartplace.naver.com/bizes/place/11514183/details?bookingBusinessId=1506242&amp;businessId=11514183&amp;businessType=place&amp;menu=additional" rel="noopener noreferrer" target="_blank">네이버 스마트플레이스</a><a class="link-item" href="https://partner.talk.naver.com/web/accounts/103336702" rel="noopener noreferrer" target="_blank">네이버톡톡 파트너센터</a><a class="link-item" href="https://soomgo.com/profile" rel="noopener noreferrer" target="_blank">숨고</a><a class="link-item" href="https://www.google.com/search?q=%EC%9D%B4%EC%9D%8C%EC%84%B8%EB%AC%B4%EC%BB%A8%EC%84%A4%ED%8C%85&amp;stick=H4sIAAAAAAAA_wFBAL7_CAYiJTB4MzU3YjVmMTgyZDg0YjAzYjoweDkxYjM3MzY1YWRhY2M5Y2OiBRXsnbTsnYzshLjrrLTsu6jshKTtjIXBXhauQQAAAA&amp;hl=ko&amp;mat=CTXS4-rJX4BaElcBTVDHnsryNIZWCdzLQ487zCaHaxzDtCCj4IRDvEPaP3Uy2ePlKmfXhPGUN1kmMi_d6kygo9RNOuBCaYRV1D_3xWxbkZZZ6DtJmQVr-uene5YdWM4FXUg&amp;authuser=0&amp;ved=2ahUKEwjko6XCtJSTAxVt6DQHHWKSCKIQ-MgIegQIFxAj" rel="noopener noreferrer" target="_blank">이음세무컨설팅 - Google 검색</a><a class="link-item" href="https://business.kakao.com/_SixeWn/dashboard" rel="noopener noreferrer" target="_blank">카카오비즈니스 파트너센터</a></div></div>
+</section><section class="folder" data-folder="매장관리">
+<button aria-expanded="false" class="folder-btn" type="button">
+<span class="folder-left"><span class="folder-icon">🏪</span><span class="folder-name">매장관리</span></span>
+<span class="folder-meta">8개 <span class="pin-badge">고정</span></span>
+</button>
+<div class="panel"><div class="link-grid"><a class="link-item" href="https://feedly.com/i/discover?query=suggesto%2F%ED%83%9D%EC%8A%A4%EC%9B%8C%EC%B9%98" rel="noopener noreferrer" target="_blank">Discover and Add New Feeds</a><a class="link-item" href="https://mail.naver.com/v2/folders/0/all" rel="noopener noreferrer" target="_blank">Naver Mail</a><a class="link-item" href="https://sites.google.com/view/netax/%ED%99%88" rel="noopener noreferrer" target="_blank">netax</a><a class="link-item" href="https://myadcenter.google.com/home?ref=app-launcher" rel="noopener noreferrer" target="_blank">내 광고 센터</a><a class="link-item" href="https://business.google.com/locations?gmbsrc=ww-ww-ot-gs-z-gmb-l-z-h~z-ogb-u" rel="noopener noreferrer" target="_blank">비즈니스</a><a class="link-item" href="https://business.saramin.co.kr/" rel="noopener noreferrer" target="_blank">사람인</a><a class="link-item" href="https://www.jobkorea.co.kr/" rel="noopener noreferrer" target="_blank">잡코리아</a><a class="link-item" href="https://www.taxnet.co.kr/" rel="noopener noreferrer" target="_blank">택스넷</a></div></div>
+</section><section class="folder" data-folder="법령공식">
+<button aria-expanded="false" class="folder-btn" type="button">
+<span class="folder-left"><span class="folder-icon">⚖️</span><span class="folder-name">법령공식</span></span>
+<span class="folder-meta">9개 <span class="pin-badge">고정</span></span>
+</button>
+<div class="panel"><div class="link-grid"><a class="link-item" href="https://www.law.go.kr/main.html" rel="noopener noreferrer" target="_blank">국가법령정보센터</a><a class="link-item" href="https://taxlaw.nts.go.kr/index.do" rel="noopener noreferrer" target="_blank">국세법령정보시스템</a><a class="link-item" href="https://www.nts.go.kr/nts/cm/cntnts/cntntsView.do?mi=2226&amp;cntntsId=7666" rel="noopener noreferrer" target="_blank">국세청&gt;국세신고안내</a><a class="link-item" href="https://www.nts.go.kr/nts/ad/nf/nltFormatTotalApiList.do?mi=40178" rel="noopener noreferrer" target="_blank">국세청&gt;국세정책/제도&gt;세무서식&gt;전체서식</a><a class="link-item" href="https://portal.scourt.go.kr/pgp/index.on" rel="noopener noreferrer" target="_blank">사법정보공개포털</a><a class="link-item" href="https://portal.scourt.go.kr/pgp/main.on?w2xPath=PGP1051M04&amp;&amp;estbrlRefcCtt=%EB%93%B1%EA%B8%B0%EC%98%88%EA%B7%9C%20%EC%A0%9C1778%ED%98%B8&amp;&amp;estbrlRefcDvs=ruleref&amp;&amp;c=900" rel="noopener noreferrer" target="_blank">재외국민 및 외국인의 부동산등기신청절차에 관한 예규 개정 2024.05.16 [등기예규 제1778호, 시행 2024.05.16] | 사법정보공개포털</a><a class="link-item" href="https://easylaw.go.kr/CSP/CnpClsMain.laf?csmSeq=1701&amp;ccfNo=2&amp;cciNo=3&amp;cnpClsNo=1" rel="noopener noreferrer" target="_blank">주식투자자 &gt; 주식의 거래 &gt; 주식거래에 따른 세금 납부하기 &gt; 양도소득세·증권거래세 및 배당소득세 (본문) | 찾기쉬운 생활법령정보</a><a class="link-item" href="https://easylaw.go.kr/CSP/CnpClsMain.laf?csmSeq=632&amp;ccfNo=4&amp;cciNo=3&amp;cnpClsNo=1" rel="noopener noreferrer" target="_blank">중소ㆍ벤처기업 창업 &gt; 창업 지원 &gt; 창업 시 조세감면 &gt; 창업기업에 대한 세금혜택 등 (본문) | 찾기쉬운 생활법령정보</a><a class="link-item" href="https://www.law.go.kr/LSW/admRulLsInfoP.do?paras=1&amp;docType=JO&amp;languageType=KO&amp;admRulNm=%EC%9E%AC%EC%99%B8%EA%B5%AD%EB%AF%BC+%EB%B0%8F+%EC%99%B8%EA%B5%AD%EC%9D%B8%EC%9D%98+%EB%B6%80%EB%8F%99%EC%82%B0%EB%93%B1%EA%B8%B0%EC%8B%A0%EC%B2%AD%EC%A0%88%EC%B0%A8%EC%97%90+%EA%B4%80%ED%95%9C+%EC%98%88%EA%B7%9C&amp;joNo=000500000#J5:0" rel="noopener noreferrer" target="_blank">행정규칙 &gt; 본문 | 국가법령정보센터</a></div></div>
+</section><section class="folder" data-folder="법령정보">
+<button aria-expanded="false" class="folder-btn" type="button">
+<span class="folder-left"><span class="folder-icon">📚</span><span class="folder-name">법령정보</span></span>
+<span class="folder-meta">5개 <span class="pin-badge">고정</span></span>
+</button>
+<div class="panel"><div class="link-grid"><a class="link-item" href="https://www.taxcanvas.kr/core/case/010000000000035631?utm_source=chatgpt.com&amp;free=complete" rel="noopener noreferrer" target="_blank">taxcanvas</a><a class="link-item" href="https://korea.legal/%EC%83%81%EC%86%8D/%EC%83%81%EC%86%8D%EB%93%B1%EA%B8%B0/%EC%83%81%EC%86%8D%EB%93%B1%EA%B8%B0-%EC%A4%80%EB%B9%84%EC%84%9C%EB%A5%98/" rel="noopener noreferrer" target="_blank">상속등기 준비서류 - 신우법무사의 상속등기</a><a class="link-item" href="https://www.rcnews.co.kr/news/articleList.html?sc_sub_section_code=S2N44&amp;view_type=sm" rel="noopener noreferrer" target="_blank">세무법인 지율 세무이야기 &lt; 오피니언 &lt; 기사목록 - 주거환경신문</a><a class="link-item" href="https://www.etaxkorea.net/sub/sub_page.php?sp=s010608" rel="noopener noreferrer" target="_blank">조세정보의 모든것 - 이택스코리아</a><a class="link-item" href="https://www.taxwatch.co.kr/" rel="noopener noreferrer" target="_blank">택스워치:세금을 알아야 돈이 모인다</a></div></div>
+</section><section class="folder" data-folder="부동산">
+<button aria-expanded="false" class="folder-btn" type="button">
+<span class="folder-left"><span class="folder-icon">🏢</span><span class="folder-name">부동산</span></span>
+<span class="folder-meta">9개 <span class="pin-badge">고정</span></span>
+</button>
+<div class="panel"><div class="link-grid"><a class="link-item" href="https://kbland.kr/today?xy=37.51844095,126.92709865,17" rel="noopener noreferrer" target="_blank">KB부동산 - 아파트 시세, 실거래가, 분양, 빌라시세, 예측시세</a><a class="link-item" href="https://www.eais.go.kr/" rel="noopener noreferrer" target="_blank">건축행정시스템 세움터</a><a class="link-item" href="https://rt.molit.go.kr/pt/gis/gis.do?srhThingSecd=G&amp;mobileAt=" rel="noopener noreferrer" target="_blank">국토교통부 실거래가공개시스템 GIS서비스</a><a class="link-item" href="https://new.land.naver.com/complexes/14236?ms=2AN3xu,3zgrZK,17&amp;a=APT:ABYG:JGC&amp;e=RETAIL" rel="noopener noreferrer" target="_blank">네이버페이 부동산</a><a class="link-item" href="https://www.disco.re/" rel="noopener noreferrer" target="_blank">디스코 - 토지, 빌딩, 상가 거래의 시작</a><a class="link-item" href="https://ddangya.com/home/map" rel="noopener noreferrer" target="_blank">땅야 - 토지 실거래가 조회</a><a class="link-item" href="https://www.realtyprice.kr/notice/gsindividual/search.htm" rel="noopener noreferrer" target="_blank">부동산공시가격 알리미</a><a class="link-item" href="https://www.zigbang.com/" rel="noopener noreferrer" target="_blank">직방</a><a class="link-item" href="https://hogangnono.com/" rel="noopener noreferrer" target="_blank">호갱노노</a></div></div>
+</section><section class="folder" data-folder="실험-ai세무사">
+<button aria-expanded="false" class="folder-btn" type="button">
+<span class="folder-left"><span class="folder-icon">🧪</span><span class="folder-name">실험-AI세무사</span></span>
+<span class="folder-meta">5개 <span class="pin-badge">고정</span></span>
+</button>
+<div class="panel"><div class="link-grid"><a class="link-item" href="https://deevid.ai/ko/agent?utm_id=nano-banana2&amp;utm_source=google&amp;utm_medium=cpc&amp;utm_campaign=ko-im-model-dalle&amp;utm_term=dalle-agent&amp;utm_content=pc&amp;gad_source=1&amp;gad_campaignid=23225552780&amp;gclid=CjwKCAjw7vzOBhBxEiwAc7WNr9aH8UUW8iBUUhCyJRN9V3g3tN5_kMWG5OfzoqRm9VstGXZ-Wo3kyBoC_5sQAvD_BwE" rel="noopener noreferrer" target="_blank">그림생성 DeeVId AI</a><a class="link-item" href="https://deevid.ai/ko/model/pika-ai?utm_source=google&amp;utm_medium=cpc&amp;utm_campaign=ko-model-pika&amp;utm_term=pikalabs&amp;utm_content=pc&amp;gad_source=1&amp;gad_campaignid=23094738917&amp;gclid=CjwKCAjw7vzOBhBxEiwAc7WNr91fU-W08-R2Gsf8GnE0ZpLAFWDh-gzFDpsVU6S5-ZViqFQIXOV01xoClGoQAvD_BwE" rel="noopener noreferrer" target="_blank">그림을 영상으로 Pika Labs 모델</a><a class="link-item" href="https://deevid.ai/ko/model/runway-ai?utm_source=google&amp;utm_medium=cpc&amp;utm_campaign=ko-model-runway&amp;utm_term=runway&amp;utm_content=pc&amp;gad_source=1&amp;gad_campaignid=22690685461&amp;gclid=CjwKCAjw7vzOBhBxEiwAc7WNr9zMXqb2w-qH1nkwJUyxUx94bW6xH7kVyMBEeQtR9qs02P4CYsaI1hoCB6wQAvD_BwE" rel="noopener noreferrer" target="_blank">그림을 영상으로 Runway Gen-4.5 모델</a><a class="link-item" href="https://deevid.ai/ko/ai-video-editor?utm_id=ai-video-editor&amp;utm_source=google&amp;utm_medium=cpc&amp;utm_campaign=ko-video-editor-competitor-capcut&amp;utm_term=capcut&amp;utm_content=pc&amp;gad_source=1&amp;gad_campaignid=23613572343&amp;gclid=CjwKCAjw7vzOBhBxEiwAc7WNr7MhmOkpZxkdc47ECVHARWHXhNoJVG9Sdvm4bhQrgaYCg-htaHvZ8RoCRp8QAvD_BwE" rel="noopener noreferrer" target="_blank">연결완성 CapCut</a><a class="link-item" href="https://deevid.ai/ko/text-to-speech?utm_source=google&amp;utm_medium=cpc&amp;utm_campaign=ko-tts-model-11labs&amp;utm_term=11labs-tts&amp;utm_content=pc&amp;gad_source=1&amp;gad_campaignid=23300960353&amp;gclid=CjwKCAjw7vzOBhBxEiwAc7WNr8v7tMGwMbuXqHG_SXi2XH1KxkEOiQMCftlJBCe4BWd-TiJ2CKgt-xoCMJcQAvD_BwE" rel="noopener noreferrer" target="_blank">음성생성 ElevenLabs</a></div></div>
+</section><section class="folder" data-folder="실험-코딩">
+<button aria-expanded="false" class="folder-btn" type="button">
+<span class="folder-left"><span class="folder-icon">💻</span><span class="folder-name">실험-코딩</span></span>
+<span class="folder-meta">2개 <span class="pin-badge">고정</span></span>
+</button>
+<div class="panel"><div class="link-grid"><a class="link-item" href="https://colab.research.google.com/" rel="noopener noreferrer" target="_blank">Colab</a><a class="link-item" href="https://docs.conda.io/projects/conda/en/latest/user-guide/getting-started.html" rel="noopener noreferrer" target="_blank">conda 시작하기 — conda 26.1.1.dev20 문서</a></div></div>
+</section><section class="folder" data-folder="업무">
+<button aria-expanded="false" class="folder-btn" type="button">
+<span class="folder-left"><span class="folder-icon">💼</span><span class="folder-name">업무</span></span>
+<span class="folder-meta">11개 <span class="pin-badge">고정</span></span>
+</button>
+<div class="panel"><div class="link-grid"><a class="link-item" href="https://hometax.go.kr/websquare/websquare.html?w2xPath=/ui/pp/index_pp.xml&amp;menuCd=index3" rel="noopener noreferrer" target="_blank">HomeTax</a><a class="link-item" href="https://www.wehago.com/landing/ko/home/?utm_source=naver&amp;utm_medium=BS&amp;utm_campaign=PC&amp;utm_content=basic" rel="noopener noreferrer" target="_blank">WEHAGO</a><a class="link-item" href="https://www.wetax.go.kr/main.do" rel="noopener noreferrer" target="_blank">WETAX</a><a class="link-item" href="https://xn--989a00af8jnslv3dba.com/transfer" rel="noopener noreferrer" target="_blank">양도소득세 계산기 - 부동산계산기.com</a><a class="link-item" href="https://www.iros.go.kr/index.jsp" rel="noopener noreferrer" target="_blank">인터넷등기소</a><a class="link-item" href="https://dart.fss.or.kr/" rel="noopener noreferrer" target="_blank">전자공시시스템</a><a class="link-item" href="https://plus.gov.kr/" rel="noopener noreferrer" target="_blank">정부24</a><a class="link-item" href="https://www.etaxkorea.net/main/login/login_print.php?mode=www&amp;page=L3N1Yi9qb3NlZGF0YS9wb3B1cF9zZW1vb19jaGFydF92aWV3LnBocD9zZXE9MjEma2luZD0wMQ==" rel="noopener noreferrer" target="_blank">조세정보의 모든것 - 이택스코리아</a><a class="link-item" href="https://sminfo.mss.go.kr/cm/sv/CSV001R0.do" rel="noopener noreferrer" target="_blank">중소기업현황정보시스템</a><a class="link-item" href="https://www.ctaplatform.com/" rel="noopener noreferrer" target="_blank">플랫폼세무사회</a><a class="link-item" href="https://www.semuportal.com/bizon/index.do" rel="noopener noreferrer" target="_blank">한국세무사회전산법인-세무포털</a></div></div>
+</section><section class="folder" data-folder="업무도구">
+<button aria-expanded="false" class="folder-btn" type="button">
+<span class="folder-left"><span class="folder-icon">🧰</span><span class="folder-name">업무도구</span></span>
+<span class="folder-meta">8개 <span class="pin-badge">고정</span></span>
+</button>
+<div class="panel"><div class="link-grid"><a class="link-item" href="https://www.camscanner.com/" rel="noopener noreferrer" target="_blank">CamScanner</a><a class="link-item" href="https://deevid.ai/ko/ai-image-generator?utm_id=nano-banana2&amp;utm_source=google&amp;utm_medium=cpc&amp;utm_campaign=ko-im-model-canva&amp;utm_term=canva-image&amp;utm_content=pc&amp;gad_source=1&amp;gad_campaignid=23297840110&amp;gclid=CjwKCAiAnoXNBhAZEiwAnItcG7XYQzukA8b_3M1hgkEwvy93vYcRkn5JIrBsFERghBrA-H_sSR6nPBoCE_8QAvD_BwE" rel="noopener noreferrer" target="_blank">Canva</a><a class="link-item" href="https://app.koofr.net/app/storage/ffc5da40-16d9-42fe-ade8-9fb14e0a23b0" rel="noopener noreferrer" target="_blank">Koofr</a><a class="link-item" href="https://m365.cloud.microsoft/search/?auth=1&amp;origindomain=microsoft365" rel="noopener noreferrer" target="_blank">M365 Copilot</a><a class="link-item" href="https://tools.pdf24.org/ko/" rel="noopener noreferrer" target="_blank">PDF24 Tools</a><a class="link-item" href="https://www.photopea.com/" rel="noopener noreferrer" target="_blank">Photopea</a><a class="link-item" href="https://accounts.hancom.com/oauth2/authorize?client_id=5xusimMCZbLJQIfLl06i&amp;redirect_uri=https%3A%2F%2Fwww.hancomdocs.com%2Flogin&amp;response_type=code&amp;scope=hancomOauth%3Awrite+hancomOauth%3Aread&amp;state=eyJ0IjoiMTc3MjI1NTYxMzA1OSIsInJlZGlyZWN0IjoiL2tvL2hvbWUifQ%3D%3D&amp;token=true" rel="noopener noreferrer" target="_blank">한컴독스</a><a class="link-item" href="https://www.canva.com/" rel="noopener noreferrer" target="_blank">홈 - Canva</a></div></div>
+</section><section class="folder" data-folder="정보수집">
+<button aria-expanded="false" class="folder-btn" type="button">
+<span class="folder-left"><span class="folder-icon">📡</span><span class="folder-name">정보수집</span></span>
+<span class="folder-meta">4개 <span class="pin-badge">고정</span></span>
+</button>
+<div class="panel"><div class="link-grid"><a class="link-item" href="https://distill.io/" rel="noopener noreferrer" target="_blank">Distill</a><a class="link-item" href="https://feedly.com/i/welcome" rel="noopener noreferrer" target="_blank">Feedly</a><a class="link-item" href="https://www.google.com/alerts" rel="noopener noreferrer" target="_blank">Google Alerts</a><a class="link-item" href="https://rss.app/" rel="noopener noreferrer" target="_blank">RSS.app</a></div></div>
+</section><section class="folder" data-folder="지도">
+<button aria-expanded="false" class="folder-btn" type="button">
+<span class="folder-left"><span class="folder-icon">🗺️</span><span class="folder-name">지도</span></span>
+<span class="folder-meta">6개 <span class="pin-badge">고정</span></span>
+</button>
+<div class="panel"><div class="link-grid"><a class="link-item" href="https://earth.google.com/web/?authuser=0" rel="noopener noreferrer" target="_blank">Google Earth</a><a class="link-item" href="https://map.kakao.com/" rel="noopener noreferrer" target="_blank">Kakao Map</a><a class="link-item" href="https://map.naver.com/p/" rel="noopener noreferrer" target="_blank">Naver Map</a><a class="link-item" href="https://seereal.lh.or.kr/SeerealMAP/seerealCommon/mainPage.do" rel="noopener noreferrer" target="_blank">SEE:REAL</a><a class="link-item" href="https://www.vworld.kr/v4po_main.do" rel="noopener noreferrer" target="_blank">브이월드</a><a class="link-item" href="https://eum.go.kr/web/mp/mpMapDet.jsp" rel="noopener noreferrer" target="_blank">이음지도</a></div></div>
+</section><section class="folder" data-folder="참고블로그">
+<button aria-expanded="false" class="folder-btn" type="button">
+<span class="folder-left"><span class="folder-icon">📝</span><span class="folder-name">참고블로그</span></span>
+<span class="folder-meta">6개 <span class="pin-badge">고정</span></span>
+</button>
+<div class="panel"><div class="link-grid"><a class="link-item" href="https://blog.naver.com/ssjpnd/223050002763" rel="noopener noreferrer" target="_blank">[블로그]비거주자 부동산 매매상속증여</a><a class="link-item" href="https://blog.naver.com/kssa7940/224230474065" rel="noopener noreferrer" target="_blank">경영컨설팅 2026년 가장 HOT한 직업 : 네이버 블로그</a><a class="link-item" href="https://blog.naver.com/feelhit1/223855185985" rel="noopener noreferrer" target="_blank">경영컨설팅, 한국중소기업경영지원센터에서 받아야.. : 네이버블로그</a><a class="link-item" href="https://blog.naver.com/lsjis7150/223885025135" rel="noopener noreferrer" target="_blank">경영컨설팅업 세금 100% 줄이는 비밀? 업종.. : 네이버블로그</a><a class="link-item" href="https://blog.naver.com/PostView.naver?blogId=hsm170294&amp;logNo=224320073787&amp;categoryNo=16&amp;parentCategoryNo=&amp;from=thumbnailList" rel="noopener noreferrer" target="_blank">안양 개인회생, 법무사에게 맡겨도 될까요? 법무사 vs 변호사 차이 (안양 법무사) : 네이버 블로그</a><a class="link-item" href="https://terms.naver.com/list.naver?cid=51281&amp;categoryId=51285&amp;so=st4.asc" rel="noopener noreferrer" target="_blank">합법적으로 세금 안 내는 110가지 방법 : 부동산편 : 네이버 지식백과</a></div></div>
+</section><section class="folder" data-folder="포털검색">
+<button aria-expanded="false" class="folder-btn" type="button">
+<span class="folder-left"><span class="folder-icon">🔎</span><span class="folder-name">포털검색</span></span>
+<span class="folder-meta">4개 <span class="pin-badge">고정</span></span>
+</button>
+<div class="panel"><div class="link-grid"><a class="link-item" href="https://www.bing.com/" rel="noopener noreferrer" target="_blank">Bing</a><a class="link-item" href="https://www.daum.net/" rel="noopener noreferrer" target="_blank">Daum</a><a class="link-item" href="https://www.google.com/?hl=ko" rel="noopener noreferrer" target="_blank">Google</a><a class="link-item" href="https://www.naver.com/" rel="noopener noreferrer" target="_blank">NAVER</a></div></div>
+</section></main><div class="no-result" id="noResult">검색 결과가 없습니다.</div></div>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+ const folders=Array.from(document.querySelectorAll('.folder')); const search=document.getElementById('search'); const noResult=document.getElementById('noResult'); let pinned=null;
+ function closeAllExcept(target){folders.forEach(f=>{if(f!==target){f.classList.remove('open');f.querySelector('.folder-btn').setAttribute('aria-expanded','false')}})}
+ function openFolder(f){closeAllExcept(f);f.classList.add('open');f.querySelector('.folder-btn').setAttribute('aria-expanded','true')}
+ function closeFolder(f){if(f!==pinned){f.classList.remove('open');f.querySelector('.folder-btn').setAttribute('aria-expanded','false')}}
+ folders.forEach(f=>{const btn=f.querySelector('.folder-btn');
+   f.addEventListener('mouseenter',()=>{if(!search.value.trim())openFolder(f)});
+   f.addEventListener('mouseleave',()=>{if(!search.value.trim())closeFolder(f)});
+   btn.addEventListener('click',e=>{e.preventDefault(); if(pinned===f){f.classList.remove('pinned');pinned=null;f.classList.remove('open');btn.setAttribute('aria-expanded','false')}else{if(pinned)pinned.classList.remove('pinned');pinned=f;folders.forEach(x=>x.classList.remove('pinned'));f.classList.add('pinned');openFolder(f)}});
+ });
+ search.addEventListener('input',()=>{const q=search.value.trim().toLowerCase(); if(!q){folders.forEach(f=>{f.classList.remove('hidden');f.querySelectorAll('.link-item').forEach(a=>a.classList.remove('hidden'))});noResult.style.display='none';if(pinned)openFolder(pinned);else folders.forEach(f=>f.classList.remove('open'));return}
+   let any=false; folders.forEach(f=>{const fname=(f.dataset.folder||'').toLowerCase(); let hit=fname.includes(q); f.querySelectorAll('.link-item').forEach(a=>{const m=a.textContent.toLowerCase().includes(q)||a.href.toLowerCase().includes(q);a.classList.toggle('hidden',!m&&!fname.includes(q));if(m)hit=true}); f.classList.toggle('hidden',!hit); if(hit){f.classList.add('open');any=true}else f.classList.remove('open')}); noResult.style.display=any?'none':'block';
+ });
+});
+</script></body></html>
