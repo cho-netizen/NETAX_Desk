@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>NETAX Desk 가이드 v1.7</title>
+<title>NETAX Desk 가이드 v2.0</title>
 <style>
 :root{--bg:#eef1f5;--btn:#d8dde5;--border:#aeb7c4;--text:#111827;--muted:#4b5563;--accent:#1f2937;--gold:#b08d2f}
 *{box-sizing:border-box} body{margin:0;font-family:"Malgun Gothic","Apple SD Gothic Neo",Arial,sans-serif;background:var(--bg);color:var(--text)}
@@ -53,7 +53,7 @@ h1{margin:0;font-size:28px;font-weight:800;letter-spacing:-.03em}
 <div class="wrap">
   <header>
     <h1>NETAX Desk 가이드</h1>
-    <div class="sub">이음세무컨설팅 업무 런처 사용법 · v1.7</div>
+    <div class="sub">이음세무컨설팅 업무 런처 사용법 · v2.0</div>
     <a class="back-link" href="index.html">← Desk로 돌아가기</a>
   </header>
 
@@ -75,24 +75,8 @@ h1{margin:0;font-size:28px;font-weight:800;letter-spacing:-.03em}
   <div class="doc-panel">
     <h3>폴더 구성</h3>
     <p>현재 등록된 폴더와 각 폴더의 성격은 다음과 같습니다.</p>
-    <ul>
-      <li>🤖 <b>AI</b> — ChatGPT·Claude·Gemini 등 AI 챗봇 모음</li>
-      <li>🌐 <b>Google</b> — Gmail·Calendar·Sheets 등 구글 생산성 앱</li>
-      <li>💾 <b>Storage</b> — Google Drive·Dropbox 등 클라우드 저장소</li>
-      <li>👥 <b>고객관리</b> — 상담 예약, 스마트플레이스·톡톡 등 고객 문의 채널</li>
-      <li>🏪 <b>매장관리</b> — 사무실 홍보, 채용(사람인·잡코리아), 광고 관리</li>
-      <li>⚖️ <b>법령공식</b> — 국가법령정보센터 등 정부·법원의 공식 법령·서식 원문</li>
-      <li>📚 <b>법령정보</b> — 세무 관련 참고 사이트 및 뉴스</li>
-      <li>🏢 <b>부동산</b> — 시세·실거래가 조회(KB부동산·호갱노노·디스코 등)</li>
-      <li>🧪 <b>실험-AI세무사</b> — AI 영상·음성 생성 등 신기술 실험용 도구</li>
-      <li>💻 <b>실험-코딩</b> — 코딩 학습·실험 관련 자료</li>
-      <li>💼 <b>업무</b> — 홈택스·위택스 등 세무 실무 핵심 사이트</li>
-      <li>🧰 <b>업무도구</b> — 문서 스캔·편집·디자인(PDF24·Photopea·Canva 등)</li>
-      <li>📡 <b>정보수집</b> — Feedly·RSS 등 뉴스·정보 모니터링 도구</li>
-      <li>🗺️ <b>지도</b> — Google Earth·카카오맵 등 지도·위성 조회</li>
-      <li>📝 <b>참고블로그</b> — 업무 관련 참고용 블로그 글 모음</li>
-      <li>🔎 <b>포털검색</b> — Google·네이버 등 포털 검색엔진</li>
-    </ul>
+    <ul id="folderList"></ul>
+    <p id="folderStatus" style="color:#6b7280;font-weight:600">불러오는 중...</p>
   </div>
 
   <div class="doc-panel">
@@ -114,5 +98,61 @@ h1{margin:0;font-size:28px;font-weight:800;letter-spacing:-.03em}
     </ul>
   </div>
 </div>
+
+<script>
+// Desk와 동일한 Folders 시트를 읽어와 "폴더 구성" 목록을 자동으로 채웁니다.
+const FOLDERS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUwVHa8DnEWvrU3Kr-sOCncBFF6v9zVp1nWPlH0PkNa7_-uF6XeUVFo68DWLz4BCQHRcSf21gNHd-v/pub?gid=0&single=true&output=csv";
+
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  text = text.replace(/^\uFEFF/, '');
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i], next = text[i + 1];
+    if (inQuotes) {
+      if (c === '"' && next === '"') { field += '"'; i++; }
+      else if (c === '"') { inQuotes = false; }
+      else { field += c; }
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ',') { row.push(field); field = ''; }
+      else if (c === '\r') { /* skip */ }
+      else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+      else field += c;
+    }
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(v => v.trim() !== ''));
+}
+function csvToObjects(text) {
+  const rows = parseCSV(text);
+  const header = rows[0].map(h => h.trim());
+  return rows.slice(1).map(r => { const o = {}; header.forEach((h, i) => o[h] = (r[i] || '').trim()); return o; });
+}
+function escText(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+async function loadFolderList() {
+  const listEl = document.getElementById('folderList');
+  const statusEl = document.getElementById('folderStatus');
+  try {
+    const res = await fetch(FOLDERS_CSV_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const folders = csvToObjects(await res.text())
+      .map(f => ({ order: parseInt(f['순서'], 10) || 0, icon: f['아이콘'] || '', name: f['폴더명'] || '', desc: f['설명'] || '' }))
+      .filter(f => f.name)
+      .sort((a, b) => a.order - b.order);
+
+    listEl.innerHTML = folders.map(f =>
+      `<li>${escText(f.icon)} <b>${escText(f.name)}</b>${f.desc ? ' — ' + escText(f.desc) : ''}</li>`
+    ).join('');
+    statusEl.style.display = 'none';
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = '폴더 목록을 불러오지 못했습니다. (' + err.message + ')';
+    statusEl.style.color = '#b91c1c';
+  }
+}
+document.addEventListener('DOMContentLoaded', loadFolderList);
+</script>
 </body>
 </html>
