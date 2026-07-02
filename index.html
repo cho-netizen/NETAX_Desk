@@ -7,9 +7,12 @@
 :root{--bg:#eef1f5;--btn:#d8dde5;--btnh:#c8d0db;--btna:#b8c2d0;--border:#aeb7c4;--text:#111827;--muted:#4b5563;--link:#f3f5f8;--linkh:#dfe5ee;--accent:#1f2937;--gold:#b08d2f}
 *{box-sizing:border-box} body{margin:0;font-family:"Malgun Gothic","Apple SD Gothic Neo",Arial,sans-serif;background:var(--bg);color:var(--text)}
 .wrap{max-width:1180px;margin:0 auto;padding:28px 24px 48px}
-header{background:#f7f8fa;border:1px solid var(--border);border-top:5px solid var(--accent);border-radius:10px;padding:24px 26px;box-shadow:0 4px 14px rgba(17,24,39,.08);margin-bottom:22px}
+header{background:#f7f8fa;border:1px solid var(--border);border-top:5px solid var(--accent);border-radius:10px;padding:24px 26px;box-shadow:0 4px 14px rgba(17,24,39,.08);margin-bottom:14px}
+.header-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:nowrap}
+.header-top h1{flex:1 1 auto;min-width:0;overflow-wrap:break-word}
+.header-top .guide-link{flex:0 0 auto}
 h1{margin:0;font-size:30px;font-weight:800;letter-spacing:-.03em}
-.search{margin-top:16px;width:100%;height:48px;border:1px solid #9ca3af;border-radius:8px;font-size:18px;padding:0 16px;outline:none;background:#fff;color:var(--text);font-weight:600}
+.search{margin:0 0 22px;width:100%;height:48px;border:1px solid #9ca3af;border-radius:8px;font-size:18px;padding:0 16px;outline:none;background:#fff;color:var(--text);font-weight:600}
 .search:focus{border-color:#374151;box-shadow:0 0 0 3px rgba(55,65,81,.15)}
 .folders{display:grid;grid-template-columns:1fr;gap:10px}.folder{border:1px solid var(--border);border-radius:9px;overflow:hidden;background:#fff;box-shadow:0 2px 7px rgba(17,24,39,.05)}
 .folder-btn{width:100%;border:0;background:var(--btn);color:var(--text);padding:16px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-size:20px;font-weight:800;text-align:left}
@@ -22,9 +25,7 @@ h1{margin:0;font-size:30px;font-weight:800;letter-spacing:-.03em}
 @media(max-width:720px){.wrap{padding:18px 12px 32px}h1{font-size:25px}.folder-btn{font-size:18px;padding:15px 14px}.folder-meta{font-size:13px}.link-grid{grid-template-columns:1fr}.link-item{font-size:17px}}
 
 .guide-link {
-  float: right;
   display: inline-block;
-  margin-top: 2px;
   padding: 9px 14px;
   border: 1px solid #9ca3af;
   border-radius: 7px;
@@ -33,6 +34,7 @@ h1{margin:0;font-size:30px;font-weight:800;letter-spacing:-.03em}
   text-decoration: none;
   font-size: 15px;
   font-weight: 800;
+  white-space: nowrap;
 }
 .guide-link:hover {
   background: #c8d0db;
@@ -46,10 +48,12 @@ h1{margin:0;font-size:30px;font-weight:800;letter-spacing:-.03em}
 <body>
 <div class="wrap">
   <header>
-    <h1>NETAX Desk <span style="font-size:18px;color:#6b7280;">v2.0</span></h1>
-    <a class="guide-link" href="guide.html">📖 Guide</a>
-    <input autocomplete="off" class="search" id="search" placeholder="검색어 입력: 홈택스, 양도, Claude, Drive..." type="search"/>
+    <div class="header-top">
+      <h1>NETAX Desk <span style="font-size:18px;color:#6b7280;">v2.0</span></h1>
+      <a class="guide-link" href="guide.html">📖 Guide</a>
+    </div>
   </header>
+  <input autocomplete="off" class="search" id="search" placeholder="검색어 입력: 홈택스, 양도, Claude, Drive..." type="search"/>
   <main class="folders" id="folders"></main>
   <div class="status-msg" id="statusMsg">불러오는 중...</div>
   <div class="no-result" id="noResult">검색 결과가 없습니다.</div>
