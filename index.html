@@ -9,9 +9,9 @@
 *{box-sizing:border-box} body{margin:0;font-family:"Malgun Gothic","Apple SD Gothic Neo",Arial,sans-serif;background:var(--bg);color:var(--text)}
 .wrap{max-width:1180px;margin:0 auto;padding:28px 24px 48px}
 header{background:#f7f8fa;border:1px solid var(--border);border-top:5px solid var(--accent);border-radius:10px;padding:24px 26px;box-shadow:0 4px 14px rgba(17,24,39,.08);margin-bottom:22px}
-h1{margin:0;font-size:30px;font-weight:800;letter-spacing:-.03em}.sub{margin-top:7px;color:var(--muted);font-size:15px;font-weight:600}
-.search{margin-top:20px;width:100%;height:48px;border:1px solid #9ca3af;border-radius:8px;font-size:18px;padding:0 16px;outline:none;background:#fff;color:var(--text);font-weight:600}
-.search:focus{border-color:#374151;box-shadow:0 0 0 3px rgba(55,65,81,.15)}.hint{margin-top:10px;color:#6b7280;font-size:13px}
+h1{margin:0;font-size:30px;font-weight:800;letter-spacing:-.03em}
+.search{margin-top:16px;width:100%;height:48px;border:1px solid #9ca3af;border-radius:8px;font-size:18px;padding:0 16px;outline:none;background:#fff;color:var(--text);font-weight:600}
+.search:focus{border-color:#374151;box-shadow:0 0 0 3px rgba(55,65,81,.15)}
 .folders{display:grid;grid-template-columns:1fr;gap:10px}.folder{border:1px solid var(--border);border-radius:9px;overflow:hidden;background:#fff;box-shadow:0 2px 7px rgba(17,24,39,.05)}
 .folder-btn{width:100%;border:0;background:var(--btn);color:var(--text);padding:16px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-size:20px;font-weight:800;text-align:left}
 .folder-btn:hover{background:var(--btnh)}.folder.open .folder-btn{background:var(--btna);border-bottom:1px solid var(--border)}.folder.pinned .folder-btn{box-shadow:inset 4px 0 0 var(--gold)}
@@ -71,7 +71,7 @@ h1{margin:0;font-size:30px;font-weight:800;letter-spacing:-.03em}.sub{margin-top
 }
 </style>
 </head>
-<body><div class="wrap"><header><h1>NETAX Desk <span style="font-size:18px;color:#6b7280;">v1.7</span></h1><a class="guide-link" href="NETAX_Desk_Guide_v1_2.html" rel="noopener noreferrer" target="_blank">📖 Guide</a><div class="sub">북마크 기반 업무 런처 · 마우스 올림: 임시 펼침 · 클릭: 고정 · Guide는 별도 파일</div><input autocomplete="off" class="search" id="search" placeholder="검색어 입력: 홈택스, 양도, Claude, Drive..." type="search"/><div class="hint">검색 중에는 해당 항목이 있는 폴더만 표시됩니다.</div></header><main class="folders" id="folders">
+<body><div class="wrap"><header><h1>NETAX Desk <span style="font-size:18px;color:#6b7280;">v1.7</span></h1><a class="guide-link" href="NETAX_Desk_Guide_v1_2.html" rel="noopener noreferrer" target="_blank">📖 Guide</a><input autocomplete="off" class="search" id="search" placeholder="검색어 입력: 홈택스, 양도, Claude, Drive..." type="search"/></header><main class="folders" id="folders">
 <section class="folder" data-folder="ai">
 <button aria-expanded="false" class="folder-btn" type="button">
 <span class="folder-left"><span class="folder-icon">🤖</span><span class="folder-name">AI</span></span>
