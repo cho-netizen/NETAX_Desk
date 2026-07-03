@@ -114,10 +114,6 @@ async function tryUnlock() {
 document.getElementById('gateBtn').addEventListener('click', tryUnlock);
 document.getElementById('gatePw').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
 
-if (localStorage.getItem(GATE_KEY) === '1') {
-  showApp();
-}
-
 // ── 데이터 원본: 구글시트 "웹에 게시" CSV 링크 ──────────────────────
 const FOLDERS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUwVHa8DnEWvrU3Kr-sOCncBFF6v9zVp1nWPlH0PkNa7_-uF6XeUVFo68DWLz4BCQHRcSf21gNHd-v/pub?gid=0&single=true&output=csv";
 const LINKS_CSV_URL   = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUwVHa8DnEWvrU3Kr-sOCncBFF6v9zVp1nWPlH0PkNa7_-uF6XeUVFo68DWLz4BCQHRcSf21gNHd-v/pub?gid=217224871&single=true&output=csv";
@@ -311,6 +307,11 @@ function initInteractions() {
     });
     noResult.style.display = any ? 'none' : 'block';
   });
+}
+
+// 모든 함수·상수 선언이 끝난 뒤에 실행 — 이전에 비번 통과 기록이 있으면 자동 입장
+if (localStorage.getItem(GATE_KEY) === '1') {
+  showApp();
 }
 </script>
 </body>
