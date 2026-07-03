@@ -96,7 +96,9 @@ function buildIntentUrl(url, pkg) {
   try {
     const u = new URL(url);
     const scheme = u.protocol.replace(':', '');
-    return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=${scheme};package=${pkg};S.browser_fallback_url=${encodeURIComponent(url)};end`;
+    // 앱이 없으면 문제 있던 웹으로 되돌아가지 않고, 플레이스토어 설치 페이지로 보냄
+    const storeUrl = `https://play.google.com/store/apps/details?id=${pkg}`;
+    return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=${scheme};package=${pkg};S.browser_fallback_url=${encodeURIComponent(storeUrl)};end`;
   } catch (e) {
     return url;
   }
