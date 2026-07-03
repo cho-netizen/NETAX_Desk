@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>NETAX Desk v2.0</title>
+<title>NETAX Desk v2.1</title>
 <style>
 :root{--bg:#eef1f5;--btn:#d8dde5;--btnh:#c8d0db;--btna:#b8c2d0;--border:#aeb7c4;--text:#111827;--muted:#4b5563;--link:#f3f5f8;--linkh:#dfe5ee;--accent:#1f2937;--gold:#b08d2f}
 *{box-sizing:border-box} body{margin:0;font-family:"Malgun Gothic","Apple SD Gothic Neo",Arial,sans-serif;background:var(--bg);color:var(--text)}
@@ -22,6 +22,9 @@ h1{margin:0;font-size:30px;font-weight:800;letter-spacing:-.03em}
 .panel{display:none;padding:16px;background:#fff}.folder.open .panel{display:block}.link-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
 .link-item{display:block;min-height:48px;padding:13px 14px;border:1px solid #c5ccd6;border-radius:7px;background:var(--link);color:#111827;text-decoration:none;font-size:18px;font-weight:700;line-height:1.25}
 .link-item:hover{background:var(--linkh);border-color:#9ca3af;text-decoration:underline}.hidden{display:none!important}.no-result{display:none;margin-top:18px;padding:18px;border:1px dashed #9ca3af;border-radius:8px;background:#fff;color:#374151;font-weight:700}
+.conn-badge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:5px;font-size:11px;font-weight:800;vertical-align:2px;color:#fff}
+.conn-badge.app{background:#1d4ed8}
+.conn-badge.web{background:#c2410c}
 @media(max-width:720px){.wrap{padding:18px 12px 32px}h1{font-size:25px}.folder-btn{font-size:18px;padding:15px 14px}.folder-meta{font-size:13px}.link-grid{grid-template-columns:1fr}.link-item{font-size:17px}}
 
 .guide-link {
@@ -49,7 +52,7 @@ h1{margin:0;font-size:30px;font-weight:800;letter-spacing:-.03em}
 <div class="wrap">
   <header>
     <div class="header-top">
-      <h1>NETAX Desk <span style="font-size:18px;color:#6b7280;">v2.0</span></h1>
+      <h1>NETAX Desk <span style="font-size:18px;color:#6b7280;">v2.1</span></h1>
       <a class="guide-link" href="guide.html">📖 Guide</a>
     </div>
   </header>
@@ -61,16 +64,63 @@ h1{margin:0;font-size:30px;font-weight:800;letter-spacing:-.03em}
 
 <script>
 // ── 데이터 원본: 구글시트 "웹에 게시" CSV 링크 ──────────────────────
-// 시트에서 파일 → 공유 → 웹에 게시 로 Folders/Links 탭을 각각
-// "쉼표로 구분된 값(.csv)"으로 게시한 뒤 나오는 URL을 그대로 넣으면 됩니다.
 const FOLDERS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUwVHa8DnEWvrU3Kr-sOCncBFF6v9zVp1nWPlH0PkNa7_-uF6XeUVFo68DWLz4BCQHRcSf21gNHd-v/pub?gid=0&single=true&output=csv";
 const LINKS_CSV_URL   = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUwVHa8DnEWvrU3Kr-sOCncBFF6v9zVp1nWPlH0PkNa7_-uF6XeUVFo68DWLz4BCQHRcSf21gNHd-v/pub?gid=217224871&single=true&output=csv";
+
+// ── 안드로이드 패키지명 조회 테이블 ─────────────────────────────
+// 시트의 "연결방식" 열이 "앱"으로 설정된 링크에 한해서만 참조됩니다.
+// 새 서비스를 "앱"으로 지정했는데 여기 등록이 안 돼 있으면 그냥 웹으로 열립니다 → 이 목록에 한 줄만 추가하면 됨.
+const APP_MAP = {
+  "smartplace.naver.com": "com.naver.smartplace",
+  "talk.naver.com":       "com.naver.shopping.biztalk",
+  "business.kakao.com":   "com.kakao.yellowid",
+  "map.naver.com":        "com.nhn.android.nmap",
+  "map.kakao.com":        "net.daum.android.map",
+  "drive.google.com":     "com.google.android.apps.docs",
+  "mail.google.com":      "com.google.android.gm",
+  "www.dropbox.com":      "com.dropbox.android",
+  "onedrive.live.com":    "com.microsoft.skydrive"
+};
+
+function isAndroid() { return /Android/i.test(navigator.userAgent); }
+
+function androidPackageFor(url) {
+  try {
+    const host = new URL(url).host;
+    for (const key in APP_MAP) { if (host.includes(key)) return APP_MAP[key]; }
+  } catch (e) {}
+  return null;
+}
+
+function buildIntentUrl(url, pkg) {
+  try {
+    const u = new URL(url);
+    const scheme = u.protocol.replace(':', '');
+    return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=${scheme};package=${pkg};S.browser_fallback_url=${encodeURIComponent(url)};end`;
+  } catch (e) {
+    return url;
+  }
+}
+
+// 시트의 "연결방식" 값(앱/웹/빈칸)과 기기 환경(안드로이드 여부)을 조합해 최종 href와 배지를 결정
+function resolveLink(url, mode) {
+  const m = (mode || '').trim();
+  if (m === '앱') {
+    const pkg = androidPackageFor(url);
+    const href = (isAndroid() && pkg) ? buildIntentUrl(url, pkg) : url;
+    return { href, badge: '<span class="conn-badge app" title="안드로이드에서 앱으로 자동 연결">APP</span>' };
+  }
+  if (m === '웹') {
+    return { href: url, badge: '<span class="conn-badge web" title="앱이 있어도 웹으로 고정 열림">WEB</span>' };
+  }
+  return { href: url, badge: '' };
+}
 
 // ── CSV 파서 (따옴표로 감싼 값, 내부 쉼표/줄바꿈까지 처리) ─────────
 function parseCSV(text) {
   const rows = [];
   let row = [], field = '', inQuotes = false;
-  text = text.replace(/^\uFEFF/, ''); // BOM 제거
+  text = text.replace(/^\uFEFF/, '');
   for (let i = 0; i < text.length; i++) {
     const c = text[i], next = text[i + 1];
     if (inQuotes) {
@@ -132,7 +182,7 @@ async function loadAndRender() {
     folders.forEach(f => byName[f.name] = f);
     linkRows.forEach(l => {
       const f = byName[l['폴더명']];
-      if (f && l['제목'] && l['URL']) f.links.push({ title: l['제목'], href: l['URL'] });
+      if (f && l['제목'] && l['URL']) f.links.push({ title: l['제목'], href: l['URL'], mode: l['연결방식'] || '' });
     });
 
     if (!folders.length) throw new Error('폴더 데이터가 비어 있습니다');
@@ -143,9 +193,10 @@ async function loadAndRender() {
 <span class="folder-left"><span class="folder-icon">${escText(f.icon)}</span><span class="folder-name">${escText(f.name)}</span></span>
 <span class="folder-meta">${f.links.length}개 <span class="pin-badge">고정</span></span>
 </button>
-<div class="panel"><div class="link-grid">${f.links.map(l =>
-  `<a class="link-item" href="${escAttr(l.href)}" rel="noopener noreferrer" target="_blank">${escText(l.title)}</a>`
-).join('')}</div></div>
+<div class="panel"><div class="link-grid">${f.links.map(l => {
+  const resolved = resolveLink(l.href, l.mode);
+  return `<a class="link-item" href="${escAttr(resolved.href)}" rel="noopener noreferrer" target="_blank">${escText(l.title)}${resolved.badge}</a>`;
+}).join('')}</div></div>
 </section>`).join('');
 
     statusEl.style.display = 'none';
