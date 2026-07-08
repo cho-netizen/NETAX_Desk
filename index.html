@@ -47,27 +47,9 @@ h1{margin:0;font-size:30px;font-weight:800;letter-spacing:-.03em}
 
 .status-msg{margin-top:18px;padding:18px;border:1px dashed #9ca3af;border-radius:8px;background:#fff;color:#374151;font-weight:700}
 .status-msg.error{border-color:#b91c1c;color:#b91c1c}
-
-#gateOverlay{position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px}
-#gateBox{background:#fff;border:1px solid var(--border);border-radius:10px;padding:28px;max-width:340px;width:100%;box-shadow:0 4px 14px rgba(17,24,39,.08)}
-#gateBox h2{margin:0 0 14px;font-size:19px}
-#gatePw{width:100%;height:46px;border:1px solid #9ca3af;border-radius:8px;font-size:17px;padding:0 14px;outline:none;margin-bottom:10px;box-sizing:border-box}
-#gateBtn{width:100%;height:46px;border:0;border-radius:8px;background:var(--accent);color:#fff;font-size:16px;font-weight:800;cursor:pointer}
-#gateBtn:hover{opacity:.9}
-#gateErr{color:#b91c1c;font-size:13px;font-weight:700;margin-top:8px;display:none}
-#appRoot{display:none}
 </style>
 </head>
 <body>
-
-<div id="gateOverlay">
-  <div id="gateBox">
-    <h2>🔒 NETAX Desk</h2>
-    <input autocomplete="off" id="gatePw" placeholder="비밀번호" type="password"/>
-    <button id="gateBtn" type="button">입장</button>
-    <div id="gateErr">비밀번호가 올바르지 않습니다.</div>
-  </div>
-</div>
 
 <div id="appRoot">
 <div class="wrap">
@@ -85,35 +67,6 @@ h1{margin:0;font-size:30px;font-weight:800;letter-spacing:-.03em}
 </div>
 
 <script>
-// ── 간단 비밀번호 게이트 (완벽한 보안은 아니며, 우연한 접근을 막는 최소 방어선) ──
-const GATE_HASH = "88006e579d7eaf7a07f49265af7e83334156f4d70de8ae7e62f5538353e805c4";
-const GATE_KEY = "netaxDeskUnlocked";
-
-async function sha256Hex(text) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-function showApp() {
-  document.getElementById('gateOverlay').style.display = 'none';
-  document.getElementById('appRoot').style.display = 'block';
-  loadAndRender();
-}
-
-async function tryUnlock() {
-  const pw = document.getElementById('gatePw').value;
-  const hash = await sha256Hex(pw);
-  if (hash === GATE_HASH) {
-    localStorage.setItem(GATE_KEY, '1');
-    showApp();
-  } else {
-    document.getElementById('gateErr').style.display = 'block';
-  }
-}
-
-document.getElementById('gateBtn').addEventListener('click', tryUnlock);
-document.getElementById('gatePw').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
-
 // ── 데이터 원본: 구글시트 "웹에 게시" CSV 링크 ──────────────────────
 const FOLDERS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUwVHa8DnEWvrU3Kr-sOCncBFF6v9zVp1nWPlH0PkNa7_-uF6XeUVFo68DWLz4BCQHRcSf21gNHd-v/pub?gid=0&single=true&output=csv";
 const LINKS_CSV_URL   = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUwVHa8DnEWvrU3Kr-sOCncBFF6v9zVp1nWPlH0PkNa7_-uF6XeUVFo68DWLz4BCQHRcSf21gNHd-v/pub?gid=217224871&single=true&output=csv";
@@ -309,10 +262,8 @@ function initInteractions() {
   });
 }
 
-// 모든 함수·상수 선언이 끝난 뒤에 실행 — 이전에 비번 통과 기록이 있으면 자동 입장
-if (localStorage.getItem(GATE_KEY) === '1') {
-  showApp();
-}
+// 모든 함수·상수 선언이 끝난 뒤에 바로 실행
+loadAndRender();
 </script>
 </body>
 </html>
