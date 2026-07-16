@@ -2098,7 +2098,8 @@ document.getElementById('layoutPreview').addEventListener('click', () => setLayo
   const editor = document.getElementById('editorPane');
   const workspace = document.getElementById('workspace');
   let dragging = false;
-  const EDGE = 40;
+  const MIN_EDITOR = 220;  // 편집창 최소폭 — 이보다 좁아지려 하면 바로 미리보기 전용으로 전환
+  const MIN_PREVIEW = 260; // 미리보기 최소폭 — 이보다 좁아지려 하면 바로 편집창 전용으로 전환
 
   divider.addEventListener('mousedown', () => {
     dragging = true;
@@ -2110,21 +2111,23 @@ document.getElementById('layoutPreview').addEventListener('click', () => setLayo
     const rect = workspace.getBoundingClientRect();
     const newWidth = e.clientX - rect.left;
 
-    if (newWidth <= EDGE) {
+    // "더 이상 못 줄어드는 최소폭"과 "자동전환 지점"을 같은 값으로 맞춰서,
+    // 끌다가 멈칫하는 죽은 구간 없이 곧바로 이어지게 함
+    if (newWidth < MIN_EDITOR) {
       dragging = false;
       divider.classList.remove('dragging');
       document.body.style.userSelect = '';
       setLayoutMode('preview');
       return;
     }
-    if (newWidth >= rect.width - EDGE) {
+    if (newWidth > rect.width - MIN_PREVIEW) {
       dragging = false;
       divider.classList.remove('dragging');
       document.body.style.userSelect = '';
       setLayoutMode('editor');
       return;
     }
-    editor.style.flex = '0 0 ' + Math.max(220, Math.min(newWidth, rect.width - 260)) + 'px';
+    editor.style.flex = '0 0 ' + newWidth + 'px';
   });
   document.addEventListener('mouseup', () => {
     dragging = false;
