@@ -106,9 +106,16 @@
     display:flex; flex-direction:column; background:#fff;
   }
   #paneDivider{
-    flex:0 0 6px; cursor:col-resize; background:#d5d8dd; position:relative;
+    flex:0 0 6px; cursor:col-resize; position:relative; background:transparent;
   }
-  #paneDivider:hover, #paneDivider.dragging{ background:#aab0bc; }
+  #paneDivider::before{
+    content:''; position:absolute; top:50%; left:50%;
+    transform:translate(-50%, -50%);
+    width:4px; height:52px; border-radius:3px;
+    background: rgba(91,107,140,0.32);
+    transition: background 0.12s ease;
+  }
+  #paneDivider:hover::before, #paneDivider.dragging::before{ background: var(--accent); }
   #workspace.editor-only #paneDivider, #workspace.preview-only #paneDivider{ display:none; }
   #mdHelpBar{
     display:flex; align-items:center; gap:2px; padding:5px 8px;
@@ -2002,7 +2009,62 @@ async function render(){
       console.error('[외부보고서 렌더링 후처리 오류]', err);
     }
   }
+
+  try { autoFitPaneWidths(); } catch (e) { console.warn('[자동 폭조절 오류]', e); }
 }
+
+// ---------- 편집창/미리보기 폭 자동 조절 (내용 기준) ----------
+// 편집창: 가장 긴 줄의 실제 렌더 폭 / 미리보기: 표・그림・Mermaid 등 안 접히는 요소 중 가장 넓은 것
+// 기준으로 좌우 비율을 계산해서 렌더링할 때마다 다시 맞춘다. ("둘 다 보기" 모드일 때만 적용)
+function measureTextWidth(text, font){
+  try {
+    const canvas = measureTextWidth._canvas || (measureTextWidth._canvas = document.createElement('canvas'));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('no 2d context');
+    ctx.font = font;
+    return ctx.measureText(text).width;
+  } catch (e) {
+    // canvas를 못 쓰는 환경 대비: 모노스페이스 폰트 기준 평균 글자폭으로 추정
+    return text.length * 7.2;
+  }
+}
+
+function computeEditorIdealWidth(){
+  const ta = document.getElementById('mdInput');
+  const font = '12.5px "D2Coding","Consolas",monospace';
+  let maxW = 0;
+  for (const line of ta.value.split('\n')) {
+    const w = measureTextWidth(line, font);
+    if (w > maxW) maxW = w;
+  }
+  return maxW + 40; // 좌우 padding 여유
+}
+
+function computePreviewIdealWidth(){
+  const out = document.getElementById('renderOut');
+  let maxW = 720; // 표・그림이 없을 때의 기본 읽기 편한 폭
+  out.querySelectorAll('table, pre, img, .mermaid-diagram, .chart-wrapper, .timeline-chart, .compare-chart').forEach(el => {
+    if (el.scrollWidth > maxW) maxW = el.scrollWidth;
+  });
+  return maxW + 60; // 카드 여백 여유
+}
+
+function autoFitPaneWidths(){
+  const ws = document.getElementById('workspace');
+  if (ws.classList.contains('editor-only') || ws.classList.contains('preview-only')) return; // 전용모드일 땐 의미없음
+
+  const workspace = ws.getBoundingClientRect();
+  if (workspace.width < 400) return; // 폰/좁은화면 등에서는 건드리지 않음
+
+  const editorIdeal = computeEditorIdealWidth();
+  const previewIdeal = computePreviewIdealWidth();
+  const total = editorIdeal + previewIdeal;
+
+  let editorWidth = (total <= workspace.width) ? editorIdeal : (editorIdeal / total) * workspace.width;
+  editorWidth = Math.max(220, Math.min(editorWidth, workspace.width - 260));
+  document.getElementById('editorPane').style.flex = '0 0 ' + editorWidth + 'px';
+}
+window.addEventListener('resize', autoFitPaneWidths);
 
 // ---------- 이벤트 바인딩 ----------
 document.getElementById('docSelect').addEventListener('change', (e) => {
