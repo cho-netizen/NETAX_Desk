@@ -141,7 +141,11 @@
     white-space:pre-wrap; word-break:break-word; overflow:auto;
   }
 
-  #previewPane{ flex:1; overflow:auto; background:#e9eaee; padding:24px; position:relative; }
+  #previewPane{
+    flex:1; overflow:auto; background:#e9eaee; padding:0; position:relative;
+    direction: rtl; /* 스크롤바를 좌측(구분선 쪽)에 배치하는 트릭 — 내용물은 아래에서 다시 ltr로 되돌림 */
+  }
+  #previewPane > *{ direction: ltr; }
 
   /* 편집창・미리보기 스크롤바를 동일한 모양(얇고 은은하게)으로 통일 */
   #mdInput, #previewPane{
@@ -2083,6 +2087,12 @@ function setLayoutMode(mode){
   if (mode === 'editor') ws.classList.add('editor-only');
   else if (mode === 'preview') ws.classList.add('preview-only');
   // mode === 'both'이면 아무 클래스도 없는 기본 상태(좌우 분할)
+
+  // 드래그로 걸어둔 인라인 폭(style.flex)은 CSS 규칙(flex:1 1 100%)보다 항상 우선하므로,
+  // 전용모드에서는 지워야 편집창/미리보기가 제대로 꽉 채워짐 (안 지우면 마지막 드래그 폭에 멈춰있음)
+  if (mode !== 'both') {
+    document.getElementById('editorPane').style.flex = '';
+  }
 
   document.getElementById('layoutEditor').classList.toggle('active', mode === 'editor');
   document.getElementById('layoutBoth').classList.toggle('active', mode === 'both');
