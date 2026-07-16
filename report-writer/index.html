@@ -19,10 +19,12 @@
 <style>
   :root{ --bar-bg:#20242c; --bar-fg:#e8e8ec; --accent:#5b6b8c; --navy:#0D1B3D; --navy-deep:#081226; --gold:#C8A244; --gold-light:#DCC17E; }
   *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;background:#e9eaee;font-family:'Noto Sans KR',sans-serif;}
+  html,body{margin:0;padding:0;background:#e9eaee;font-family:'Noto Sans KR',sans-serif; height:100%;}
+  body{ display:flex; flex-direction:column; height:100vh; overflow:hidden; }
 
   /* ---------- 상단 툴바 (편집용, 인쇄시 숨김) ---------- */
   #toolbar{
+    flex:0 0 auto;
     position:sticky; top:0; z-index:50;
     background:var(--bar-bg); color:var(--bar-fg);
     padding:10px 16px; display:flex; gap:8px; align-items:center;
@@ -39,11 +41,24 @@
   }
   #toolbar button:hover{background:#454e60;}
   #toolbar button.iconbtn{ padding:7px 11px; font-size:15px; }
+  #toolbar button.stepper-btn{
+    color:#fff; border:none; cursor:pointer; font-family:inherit; line-height:1;
+    padding:7px 11px; font-size:15px;
+  }
+  #btnDocMinus{ background:#5c2b2b; border-radius:4px 0 0 4px; }
+  #btnDocMinus:hover{ background:#763838; }
+  #btnDocPlus{ background:#333a48; border-radius:0 4px 4px 0; }
+  #btnDocPlus:hover{ background:#454e60; }
   #toolbar button.primary{background:var(--accent); border-color:#7686ab;}
   #toolbar button.primary:hover{background:#6b7ba0;}
-  #toolbar #btnToggle{background:#454e60; border-color:#5a6478;}
-  #toolbar #btnToggle:hover{background:#525c70;}
-  #toolbar #btnToggle.active{
+  #toolbar button.layout-btn{
+    padding:7px 11px; font-size:15px; border-radius:0; border-right:1px solid #4a5268;
+    background:#333a48;
+  }
+  #toolbar button.layout-btn:first-child{ border-radius:4px 0 0 4px; }
+  #toolbar button.layout-btn:last-child{ border-radius:0 4px 4px 0; border-right:none; }
+  #toolbar button.layout-btn:hover{ background:#454e60; }
+  #toolbar button.layout-btn.active{
     background:#20242c; border-color:var(--accent);
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.55);
     color:#9fb0e6;
@@ -76,9 +91,11 @@
   }
 
   /* ---------- 편집 / 미리보기 레이아웃 ---------- */
-  #workspace{display:flex; height:calc(100vh - 46px);}
+  #workspace{display:flex; flex:1 1 auto; min-height:0;}
   #workspace.preview-only #editorPane{display:none;}
   #workspace.preview-only #previewPane{flex:1 1 100%;}
+  #workspace.editor-only #previewPane{display:none;}
+  #workspace.editor-only #editorPane{flex:1 1 100%; max-width:none;}
 
   #editorPane{
     flex:0 0 42%; max-width:640px; border-right:1px solid #ccc;
@@ -104,10 +121,11 @@
   }
   #previewControls button{
     background:none; border:none; color:#e8e8ec; cursor:pointer;
-    font-size:14px; padding:4px 8px; border-radius:14px; line-height:1;
+    font-size:14px; padding:0 8px; height:26px; border-radius:14px;
+    display:inline-flex; align-items:center; justify-content:center;
   }
   #previewControls button:hover{ background:rgba(255,255,255,0.14); }
-  #previewControls #zoomLabel{ font-size:11.5px; color:#c7cad4; min-width:34px; text-align:center; }
+  #previewControls #zoomLabel{ font-size:11.5px; color:#c7cad4; min-width:34px; height:26px; display:inline-flex; align-items:center; justify-content:center; }
   #previewControls .sep-v{ width:1px; height:16px; background:#454e60; margin:0 4px; }
   /* 전체화면(previewPane 자체를 전체화면으로) 상태에서는 배경을 그대로 유지해 카드가 화면 중앙에 떠보이게 함 */
   #previewPane:fullscreen{ padding:40px; }
@@ -213,7 +231,29 @@
     content:""; flex:1; border-top:0.75pt solid #bbb;
   }
 
-  /* ---------- 인쇄 ---------- */
+  /* ---------- 폰・태블릿 대응 (2026.07) ----------
+     좁은 화면에서는 편집창/미리보기를 좌우로 반씩 쪼개지 않고, 한 번에 하나만 보여준다.
+     "편집창만" 선택 시에만 편집창을 보여주고, 그 외("둘 다"/"미리보기만")는 전부 미리보기를 보여준다
+     (폰 화면에서는 둘 다 나눠봐야 의미가 없으므로). */
+  @media (max-width: 820px){
+    #workspace{ flex-direction:column; }
+    #editorPane{ flex:none; width:100%; max-width:none; border-right:none; }
+    #previewPane{ flex:none; width:100%; }
+    #workspace.editor-only #previewPane{ display:none; }
+    #workspace.editor-only #editorPane{ display:flex; flex:1 1 auto; }
+    #workspace:not(.editor-only) #editorPane{ display:none; }
+    #workspace:not(.editor-only) #previewPane{ display:block; flex:1 1 auto; }
+
+    /* 터치로 누르기 편하도록 버튼/드롭다운 살짝 키움 */
+    #toolbar select{ padding:8px 10px; font-size:14px; }
+    #toolbar button{ padding:9px 13px; font-size:14px; }
+    #toolbar button.iconbtn, #toolbar button.stepper-btn{ padding:9px 14px; font-size:17px; }
+    #docSelect{ max-width:150px; }
+
+    /* 확대/축소・전체화면 컨트롤: 상단 대신 엄지로 누르기 쉬운 우측 하단으로 이동 */
+    #previewControls{ top:auto; bottom:16px; right:16px; }
+  }
+
   @media print{
     #toolbar{display:none !important;}
     #workspace{height:auto; display:block;}
@@ -721,9 +761,9 @@
 
 <div id="toolbar">
   <div id="docStepper" style="position:relative; display:flex; border:1px solid #4a5268; border-radius:4px; overflow:visible;">
-    <button id="btnDocMinus" title="현재 문서 삭제" style="background:#5c2b2b; color:#fff; border:none; border-radius:4px 0 0 4px; padding:7px 10px; font-size:14px; cursor:pointer; font-family:inherit; line-height:1;">−</button>
+    <button id="btnDocMinus" class="stepper-btn" title="현재 문서 삭제">−</button>
     <span style="width:1px; background:#4a5268;"></span>
-    <button id="btnDocPlus" title="문서 추가" style="background:#333a48; color:#fff; border:none; border-radius:0 4px 4px 0; padding:7px 10px; font-size:14px; cursor:pointer; font-family:inherit; line-height:1;">＋</button>
+    <button id="btnDocPlus" class="stepper-btn" title="문서 추가">＋</button>
     <div id="addPopup" class="popupMenu">
       <button id="addFromFile">파일에서 불러오기...</button>
       <button id="addCaseMemoOpt">사건개요서 만들기</button>
@@ -739,7 +779,11 @@
     <option value="external">용역서</option>
   </select>
   <button id="btnRender" class="primary iconbtn" title="렌더링 (편집한 내용을 미리보기에 반영)">⟳</button>
-  <button id="btnToggle" class="active iconbtn" title="편집창 접기/펼치기">◨</button>
+  <div id="layoutToggle" style="display:flex;">
+    <button id="layoutEditor" class="layout-btn" title="편집창만 보기">◧</button>
+    <button id="layoutBoth" class="layout-btn active" title="편집창 + 미리보기 둘 다 보기">◫</button>
+    <button id="layoutPreview" class="layout-btn" title="미리보기만 보기">◨</button>
+  </div>
   <button id="btnNewWindow" class="iconbtn" title="완성된 문서만 새 창(탭)에서 보기 (편집 도구 없이)">↗</button>
   <div id="downloadWrap" style="position:relative; display:inline-flex;">
     <button id="btnDownload" class="iconbtn" title="다운로드 (DOC・MD・HTML・Print)">⬇</button>
@@ -1628,10 +1672,22 @@ document.getElementById('btnDocMinus').addEventListener('click', deleteCurrentDo
 refreshDocSelect();
 loadSelectedIntoEditor();
 document.getElementById('btnRender').addEventListener('click', render);
-document.getElementById('btnToggle').addEventListener('click', () => {
-  document.getElementById('workspace').classList.toggle('preview-only');
-  document.getElementById('btnToggle').classList.toggle('active');
-});
+
+// ---------- 편집창/미리보기 레이아웃 3단계 전환 (편집창만 / 둘 다 / 미리보기만) ----------
+function setLayoutMode(mode){
+  const ws = document.getElementById('workspace');
+  ws.classList.remove('editor-only', 'preview-only');
+  if (mode === 'editor') ws.classList.add('editor-only');
+  else if (mode === 'preview') ws.classList.add('preview-only');
+  // mode === 'both'이면 아무 클래스도 없는 기본 상태(좌우 분할)
+
+  document.getElementById('layoutEditor').classList.toggle('active', mode === 'editor');
+  document.getElementById('layoutBoth').classList.toggle('active', mode === 'both');
+  document.getElementById('layoutPreview').classList.toggle('active', mode === 'preview');
+}
+document.getElementById('layoutEditor').addEventListener('click', () => setLayoutMode('editor'));
+document.getElementById('layoutBoth').addEventListener('click', () => setLayoutMode('both'));
+document.getElementById('layoutPreview').addEventListener('click', () => setLayoutMode('preview'));
 
 // ---------- 미리보기 확대/축소 ----------
 let previewZoomPct = 100;
@@ -1680,7 +1736,11 @@ function buildStandaloneHtml(){
   return '<!DOCTYPE html>\n<html lang="ko">\n<head>\n<meta charset="UTF-8">\n'
     + '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
     + '<title>' + escapeHtml(title) + '</title>\n' + fonts + '\n'
-    + '<style>\n' + styleText + '\n#standaloneWrap{overflow:auto; background:#e9eaee; padding:24px; min-height:100vh;}\n</style>\n'
+    + '<style>\n' + styleText
+    + '\n/* 이 완성본은 편집도구 화면이 아니라 독립 문서이므로, 툴 자체의 body 레이아웃(고정 높이・overflow 숨김)을 원래대로 되돌림 */'
+    + '\nhtml,body{height:auto !important;}'
+    + '\nbody{display:block !important; overflow:visible !important;}'
+    + '\n#standaloneWrap{overflow:auto; background:#e9eaee; padding:24px; min-height:100vh;}\n</style>\n'
     + '</head>\n<body>\n<div id="standaloneWrap">\n' + articleHtml + '\n</div>\n</body>\n</html>';
 }
 
@@ -1786,6 +1846,12 @@ document.getElementById('dlHtml').addEventListener('click', () => {
   document.getElementById('downloadPopup').classList.remove('show');
   downloadAsHtml();
 });
+
+// 좁은 화면(폰・태블릿)에서는 편집창+미리보기를 좌우로 나눠봐야 둘 다 못 보므로,
+// 처음 열 때는 문서(미리보기)부터 보여주고, 상단 버튼으로 편집창과 전환하게 함
+if (window.matchMedia('(max-width: 820px)').matches) {
+  setLayoutMode('preview');
+}
 
 render();
 </script>
