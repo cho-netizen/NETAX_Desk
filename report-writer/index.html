@@ -93,7 +93,24 @@
     white-space:pre; overflow:auto;
   }
 
-  #previewPane{ flex:1; overflow:auto; background:#e9eaee; padding:24px; }
+  #previewPane{ flex:1; overflow:auto; background:#e9eaee; padding:24px; position:relative; }
+
+  #previewControls{
+    position:fixed; top:70px; right:24px; z-index:80;
+    display:flex; align-items:center; gap:2px;
+    background:rgba(32,36,44,0.88); border:1px solid #454e60; border-radius:20px;
+    padding:5px 8px; box-shadow:0 2px 10px rgba(0,0,0,0.25);
+  }
+  #previewControls button{
+    background:none; border:none; color:#e8e8ec; cursor:pointer;
+    font-size:14px; padding:4px 8px; border-radius:14px; line-height:1;
+  }
+  #previewControls button:hover{ background:rgba(255,255,255,0.14); }
+  #previewControls #zoomLabel{ font-size:11.5px; color:#c7cad4; min-width:34px; text-align:center; }
+  #previewControls .sep-v{ width:1px; height:16px; background:#454e60; margin:0 4px; }
+  /* 전체화면(previewPane 자체를 전체화면으로) 상태에서는 배경을 그대로 유지해 카드가 화면 중앙에 떠보이게 함 */
+  #previewPane:fullscreen{ padding:40px; }
+  #previewPane:-webkit-full-screen{ padding:40px; }
 
   /* =========================================================
      테마 1 : 불복청구서 / 심판청구서 (법정서식형)
@@ -201,6 +218,7 @@
     #workspace{height:auto; display:block;}
     #editorPane{display:none !important;}
     #previewPane{padding:0; background:#fff; overflow:visible;}
+    #previewControls{display:none !important;}
     .doc-appeal, .doc-memo{box-shadow:none; margin:0; max-width:none; padding:0;}
     .doc-appeal .doc-pagebreak, .doc-memo .doc-pagebreak{ margin:0; height:0; overflow:hidden; }
     .doc-appeal .doc-pagebreak::before, .doc-appeal .doc-pagebreak::after,
@@ -742,6 +760,13 @@
     <textarea id="mdInput" spellcheck="false"></textarea>
   </div>
   <div id="previewPane">
+    <div id="previewControls">
+      <button id="zoomOut" title="축소">−</button>
+      <span id="zoomLabel">100%</span>
+      <button id="zoomIn" title="확대">＋</button>
+      <span class="sep-v"></span>
+      <button id="btnFullscreen" title="전체화면으로 보기">⛶ 전체화면</button>
+    </div>
     <article class="doc-appeal" id="renderOut"></article>
     <div id="emptyState" style="display:none;">
       불러온 문서가 없습니다.<br><br>
@@ -1609,6 +1634,35 @@ document.getElementById('btnToggle').addEventListener('click', () => {
   document.getElementById('btnToggle').classList.toggle('active');
 });
 
+// ---------- 미리보기 확대/축소 ----------
+let previewZoomPct = 100;
+function applyPreviewZoom(){
+  document.getElementById('renderOut').style.zoom = previewZoomPct + '%';
+  document.getElementById('zoomLabel').textContent = previewZoomPct + '%';
+}
+document.getElementById('zoomIn').addEventListener('click', () => {
+  previewZoomPct = Math.min(previewZoomPct + 10, 200);
+  applyPreviewZoom();
+});
+document.getElementById('zoomOut').addEventListener('click', () => {
+  previewZoomPct = Math.max(previewZoomPct - 10, 50);
+  applyPreviewZoom();
+});
+
+// ---------- 미리보기 전체화면 (previewPane 자체만 전체화면 → 툴바는 자동으로 안 보임) ----------
+document.getElementById('btnFullscreen').addEventListener('click', () => {
+  const pane = document.getElementById('previewPane');
+  if (!document.fullscreenElement) {
+    (pane.requestFullscreen || pane.webkitRequestFullscreen)?.call(pane);
+  } else {
+    (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
+  }
+});
+document.addEventListener('fullscreenchange', () => {
+  document.getElementById('btnFullscreen').textContent =
+    document.fullscreenElement ? '⛶ 나가기' : '⛶ 전체화면';
+});
+
 function escapeHtml(s){
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
@@ -1618,7 +1672,9 @@ function escapeHtml(s){
 function buildStandaloneHtml(){
   const d = getSelected();
   const title = d ? d.name : '문서';
-  const articleHtml = document.getElementById('renderOut').outerHTML;
+  const clone = document.getElementById('renderOut').cloneNode(true);
+  clone.style.zoom = ''; // 화면에서 확대/축소한 배율이 내보낸 파일에 섞여 들어가지 않도록 제거
+  const articleHtml = clone.outerHTML;
   const styleText = document.querySelector('style').textContent;
   const fonts = '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
     + '<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">';
@@ -1633,6 +1689,7 @@ function downloadAsDoc(){
   if (!getSelected()) return;
   const theme = currentTheme();
   const clone = document.getElementById('renderOut').cloneNode(true);
+  clone.style.zoom = ''; // 화면에서 확대/축소한 배율이 내보낸 파일에 섞여 들어가지 않도록 제거
 
   // 이미지: 옛날 파서가 이해하는 legacy 속성(align, width)을 직접 부여
   clone.querySelectorAll('img').forEach(img => {

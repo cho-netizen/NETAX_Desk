@@ -18,6 +18,8 @@ h1{margin:0;font-size:30px;font-weight:800;letter-spacing:-.03em}
 .folders{display:grid;grid-template-columns:1fr;gap:10px}.folder{border:1px solid var(--border);border-radius:9px;overflow:hidden;background:#fff;box-shadow:0 2px 7px rgba(17,24,39,.05)}
 .folder-btn{width:100%;border:0;background:var(--btn);color:var(--text);padding:16px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-size:20px;font-weight:800;text-align:left}
 .folder-btn:hover{background:var(--btnh)}.folder.open .folder-btn{background:var(--btna);border-bottom:1px solid var(--border)}.folder.pinned .folder-btn{box-shadow:inset 4px 0 0 var(--gold)}
+a.folder-direct{width:100%;box-sizing:border-box;border:0;background:var(--btn);color:var(--text);padding:16px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-size:20px;font-weight:800;text-align:left;text-decoration:none}
+a.folder-direct:hover{background:var(--btnh);text-decoration:none}
 .folder-left{display:flex;align-items:center;gap:12px}.folder-icon{font-size:23px;width:30px;text-align:center}.folder-meta{font-size:15px;color:#374151;font-weight:800}
 .pin-badge{display:none;margin-left:10px;padding:3px 7px;border-radius:5px;background:#374151;color:white;font-size:12px}.folder.pinned .pin-badge{display:inline-block}
 .panel{display:none;padding:16px;background:#fff}.folder.open .panel{display:block}.link-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
@@ -26,7 +28,7 @@ h1{margin:0;font-size:30px;font-weight:800;letter-spacing:-.03em}
 .conn-badge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:5px;font-size:11px;font-weight:800;vertical-align:2px;color:#fff}
 .conn-badge.app{background:#1d4ed8}
 .conn-badge.web{background:#c2410c}
-@media(max-width:720px){.wrap{padding:18px 12px 32px}h1{font-size:25px}.folder-btn{font-size:18px;padding:15px 14px}.folder-meta{font-size:13px}.link-grid{grid-template-columns:1fr}.link-item{font-size:17px}}
+@media(max-width:720px){.wrap{padding:18px 12px 32px}h1{font-size:25px}.folder-btn,a.folder-direct{font-size:18px;padding:15px 14px}.folder-meta{font-size:13px}.link-grid{grid-template-columns:1fr}.link-item{font-size:17px}}
 
 .guide-link {
   display: inline-block;
@@ -189,7 +191,18 @@ async function loadAndRender() {
 
     if (!folders.length) throw new Error('폴더 데이터가 비어 있습니다');
 
-    foldersEl.innerHTML = folders.map(f => `
+    foldersEl.innerHTML = folders.map(f => {
+      // 링크가 1개뿐인 폴더는 펼쳐볼 하위 목록이 없으므로, 아코디언 대신
+      // 폴더명 자체가 바로 클릭 가능한 링크가 되도록 렌더링 (한 번 더 열 필요 없음)
+      if (f.links.length === 1) {
+        const resolved = resolveLink(f.links[0].href, f.links[0].mode);
+        return `
+<a class="folder folder-direct" data-folder="${escAttr(f.name.toLowerCase())}" href="${escAttr(resolved.href)}" rel="noopener noreferrer" target="_blank">
+<span class="folder-left"><span class="folder-icon">${escText(f.icon)}</span><span class="folder-name">${escText(f.name)}</span></span>
+<span class="folder-meta">${resolved.badge}</span>
+</a>`;
+      }
+      return `
 <section class="folder" data-folder="${escAttr(f.name.toLowerCase())}">
 <button aria-expanded="false" class="folder-btn" type="button">
 <span class="folder-left"><span class="folder-icon">${escText(f.icon)}</span><span class="folder-name">${escText(f.name)}</span></span>
@@ -199,7 +212,8 @@ async function loadAndRender() {
   const resolved = resolveLink(l.href, l.mode);
   return `<a class="link-item" href="${escAttr(resolved.href)}" rel="noopener noreferrer" target="_blank">${escText(l.title)}${resolved.badge}</a>`;
 }).join('')}</div></div>
-</section>`).join('');
+</section>`;
+    }).join('');
 
     statusEl.style.display = 'none';
     initInteractions();
@@ -216,12 +230,13 @@ function initInteractions() {
   const noResult = document.getElementById('noResult');
   let pinned = null;
 
-  function closeAllExcept(target) { folders.forEach(f => { if (f !== target) { f.classList.remove('open'); f.querySelector('.folder-btn').setAttribute('aria-expanded', 'false'); } }); }
-  function openFolder(f) { closeAllExcept(f); f.classList.add('open'); f.querySelector('.folder-btn').setAttribute('aria-expanded', 'true'); }
-  function closeFolder(f) { if (f !== pinned) { f.classList.remove('open'); f.querySelector('.folder-btn').setAttribute('aria-expanded', 'false'); } }
+  function closeAllExcept(target) { folders.forEach(f => { if (f !== target) { f.classList.remove('open'); const b = f.querySelector('.folder-btn'); if (b) b.setAttribute('aria-expanded', 'false'); } }); }
+  function openFolder(f) { closeAllExcept(f); f.classList.add('open'); const b = f.querySelector('.folder-btn'); if (b) b.setAttribute('aria-expanded', 'true'); }
+  function closeFolder(f) { if (f !== pinned) { f.classList.remove('open'); const b = f.querySelector('.folder-btn'); if (b) b.setAttribute('aria-expanded', 'false'); } }
 
   folders.forEach(f => {
     const btn = f.querySelector('.folder-btn');
+    if (!btn) return; // 직접 링크(단일 링크) 폴더는 펼치기/고정 동작 자체가 필요 없음 — 클릭하면 바로 이동
     f.addEventListener('mouseenter', () => { if (!search.value.trim()) openFolder(f); });
     f.addEventListener('mouseleave', () => { if (!search.value.trim()) closeFolder(f); });
     btn.addEventListener('click', e => {
