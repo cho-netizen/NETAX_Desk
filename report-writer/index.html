@@ -64,11 +64,11 @@
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.55);
     color:#9fb0e6;
   }
-  /* "둘 다 보기" 재클릭으로 자동크기를 꺼둔 상태 표시 (아래쪽 작은 점) */
-  #toolbar #layoutBoth.autofit-off{ position:relative; }
-  #toolbar #layoutBoth.autofit-off::after{
-    content:''; position:absolute; bottom:3px; left:50%; transform:translateX(-50%);
-    width:4px; height:4px; border-radius:50%; background:#e2a03f;
+  /* "모아보기" 재클릭으로 스크롤 동기화를 꺼둔 상태 — 파란 계열(켜짐)과 확실히 구분되는 호박색 톤으로 전환 */
+  #toolbar #layoutBoth.sync-off{
+    background:#4a3a1a; border-color:#a67c2e;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.55);
+    color:#e2a03f;
   }
   #toolbar .hint{font-size:11.5px; color:#a7acb8; margin-left:auto;}
   #toolbar .sep{width:1px; align-self:stretch; background:#454e60; margin:0 2px;}
@@ -877,9 +877,9 @@
   </select>
   <button id="btnRender" class="primary iconbtn" title="렌더링 (편집한 내용을 미리보기에 반영)">⟳</button>
   <div id="layoutToggle" style="display:flex;">
-    <button id="layoutEditor" class="layout-btn" title="편집창만 보기">◧</button>
-    <button id="layoutBoth" class="layout-btn active" title="편집창 + 미리보기 둘 다 보기 (스크롤 동기화 켜짐 · 다시 누르면 끄기)">◫</button>
-    <button id="layoutPreview" class="layout-btn" title="미리보기만 보기">◨</button>
+    <button id="layoutEditor" class="layout-btn" title="편집창">◧</button>
+    <button id="layoutBoth" class="layout-btn active" title="모아보기 (스크롤 동기화 켜짐)">◫</button>
+    <button id="layoutPreview" class="layout-btn" title="미리보기">◨</button>
   </div>
   <button id="btnNewWindow" class="iconbtn" title="완성된 문서만 새 창(탭)에서 보기 (편집 도구 없이)">↗</button>
   <div id="downloadWrap" style="position:relative; display:inline-flex;">
@@ -2147,10 +2147,10 @@ document.getElementById('layoutBoth').addEventListener('click', () => {
   if (alreadyBoth) {
     // 이미 "둘 다 보기"인 상태에서 다시 누르면 스크롤 동기화 켜기/끄기 토글
     scrollSyncEnabled = !scrollSyncEnabled;
-    document.getElementById('layoutBoth').classList.toggle('autofit-off', !scrollSyncEnabled);
+    document.getElementById('layoutBoth').classList.toggle('sync-off', !scrollSyncEnabled);
     document.getElementById('layoutBoth').title = scrollSyncEnabled
-      ? '편집창 + 미리보기 둘 다 보기 (스크롤 동기화 켜짐 · 다시 누르면 끄기)'
-      : '편집창 + 미리보기 둘 다 보기 (스크롤 동기화 꺼짐 · 다시 누르면 켜기)';
+      ? '모아보기 (스크롤 동기화 켜짐)'
+      : '모아보기 (스크롤 동기화 꺼짐)';
     flashSaveState(scrollSyncEnabled ? '스크롤 동기화 켜짐' : '스크롤 동기화 꺼짐');
   } else {
     setLayoutMode('both');
