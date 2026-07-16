@@ -38,6 +38,7 @@
     padding:7px 14px; font-size:13px; cursor:pointer; font-family:inherit;
   }
   #toolbar button:hover{background:#454e60;}
+  #toolbar button.iconbtn{ padding:7px 11px; font-size:15px; }
   #toolbar button.primary{background:var(--accent); border-color:#7686ab;}
   #toolbar button.primary:hover{background:#6b7ba0;}
   #toolbar #btnToggle{background:#454e60; border-color:#5a6478;}
@@ -719,18 +720,17 @@
 <body>
 
 <div id="toolbar">
-  <b>보고서 렌더시스템</b>
-  <select id="docSelect"></select>
   <div id="docStepper" style="position:relative; display:flex; border:1px solid #4a5268; border-radius:4px; overflow:visible;">
-    <button id="btnDocMinus" title="현재 문서 삭제" style="background:#5c2b2b; color:#fff; border:none; border-radius:4px 0 0 4px; padding:7px 12px; font-size:14px; cursor:pointer; font-family:inherit; line-height:1;">−</button>
-    <span style="padding:7px 8px; font-size:12px; color:#c7cad4; border-left:1px solid #4a5268; border-right:1px solid #4a5268; display:flex; align-items:center; background:#2b3040;">문서</span>
-    <button id="btnDocPlus" title="문서 추가" style="background:#333a48; color:#fff; border:none; border-radius:0 4px 4px 0; padding:7px 12px; font-size:14px; cursor:pointer; font-family:inherit; line-height:1;">＋</button>
+    <button id="btnDocMinus" title="현재 문서 삭제" style="background:#5c2b2b; color:#fff; border:none; border-radius:4px 0 0 4px; padding:7px 10px; font-size:14px; cursor:pointer; font-family:inherit; line-height:1;">−</button>
+    <span style="width:1px; background:#4a5268;"></span>
+    <button id="btnDocPlus" title="문서 추가" style="background:#333a48; color:#fff; border:none; border-radius:0 4px 4px 0; padding:7px 10px; font-size:14px; cursor:pointer; font-family:inherit; line-height:1;">＋</button>
     <div id="addPopup" class="popupMenu">
       <button id="addFromFile">파일에서 불러오기...</button>
       <button id="addCaseMemoOpt">사건개요서 만들기</button>
       <button id="addBlankOpt">빈 문서 만들기</button>
     </div>
   </div>
+  <select id="docSelect"></select>
   <input type="file" id="fileInput" accept=".md,.txt,.html,.htm" multiple style="display:none;">
   <span class="sep"></span>
   <select id="themeSelect">
@@ -738,11 +738,11 @@
     <option value="memo">검토서</option>
     <option value="external">용역서</option>
   </select>
-  <button id="btnRender" class="primary" title="편집한 내용을 미리보기에 반영">▶ 렌더링</button>
-  <button id="btnToggle" class="active" title="편집창 접기/펼치기">편집창</button>
-  <button id="btnNewWindow" title="완성된 문서만 새 창(탭)에서 보기 (편집 도구 없이)">🔗 새창으로</button>
+  <button id="btnRender" class="primary iconbtn" title="렌더링 (편집한 내용을 미리보기에 반영)">⟳</button>
+  <button id="btnToggle" class="active iconbtn" title="편집창 접기/펼치기">◨</button>
+  <button id="btnNewWindow" class="iconbtn" title="완성된 문서만 새 창(탭)에서 보기 (편집 도구 없이)">↗</button>
   <div id="downloadWrap" style="position:relative; display:inline-flex;">
-    <button id="btnDownload" title="다운로드">⬇ 다운로드</button>
+    <button id="btnDownload" class="iconbtn" title="다운로드 (DOC・MD・HTML・Print)">⬇</button>
     <div id="downloadPopup" class="popupMenu">
       <button id="dlDoc">DOC로 다운로드</button>
       <button id="dlMd">MD로 다운로드</button>
@@ -751,7 +751,6 @@
     </div>
   </div>
   <span id="saveState"></span>
-  <span class="hint">문서는 이 브라우저에 자동 저장됩니다. ＋로 추가, −로 삭제하세요. (.html은 원본 스타일 제거 후 렌더링 / "용역서" 테마는 rpt.netax.kr과 동일 규칙 적용)</span>
 </div>
 
 <div id="workspace">
@@ -765,7 +764,7 @@
       <span id="zoomLabel">100%</span>
       <button id="zoomIn" title="확대">＋</button>
       <span class="sep-v"></span>
-      <button id="btnFullscreen" title="전체화면으로 보기">⛶ 전체화면</button>
+      <button id="btnFullscreen" title="전체화면으로 보기">⛶</button>
     </div>
     <article class="doc-appeal" id="renderOut"></article>
     <div id="emptyState" style="display:none;">
@@ -1659,8 +1658,8 @@ document.getElementById('btnFullscreen').addEventListener('click', () => {
   }
 });
 document.addEventListener('fullscreenchange', () => {
-  document.getElementById('btnFullscreen').textContent =
-    document.fullscreenElement ? '⛶ 나가기' : '⛶ 전체화면';
+  document.getElementById('btnFullscreen').title =
+    document.fullscreenElement ? '전체화면 나가기' : '전체화면으로 보기';
 });
 
 function escapeHtml(s){
