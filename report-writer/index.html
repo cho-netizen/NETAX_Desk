@@ -102,9 +102,14 @@
   #workspace.editor-only #editorPane{flex:1 1 100%; max-width:none;}
 
   #editorPane{
-    flex:0 0 42%; max-width:640px; border-right:1px solid #ccc;
+    flex:0 0 42%; border-right:none; min-width:220px;
     display:flex; flex-direction:column; background:#fff;
   }
+  #paneDivider{
+    flex:0 0 6px; cursor:col-resize; background:#d5d8dd; position:relative;
+  }
+  #paneDivider:hover, #paneDivider.dragging{ background:#aab0bc; }
+  #workspace.editor-only #paneDivider, #workspace.preview-only #paneDivider{ display:none; }
   #mdHelpBar{
     display:flex; align-items:center; gap:2px; padding:5px 8px;
     background:#f7f8fa; border-bottom:1px solid #ddd;
@@ -166,6 +171,12 @@
   /* =========================================================
      테마 1 : 불복청구서 / 심판청구서 (법정서식형)
      ========================================================= */
+  /* 화면에서 편집하며 보는 미리보기(#renderOut)는 폭 제한을 풀어 미리보기창을 꽉 채운다.
+     다운로드・새창으로 내보낸 완성본은 clone에서 id를 지우므로 이 규칙이 적용되지 않고
+     실제 인쇄물/고객화면 폭(210mm・720px)을 그대로 유지한다. */
+  #renderOut.doc-appeal, #renderOut.doc-memo, #renderOut.md-content{
+    max-width: none;
+  }
   .doc-appeal{
     background:#fff; max-width:210mm; margin:0 auto; padding:20mm 20mm 15mm 20mm;
     box-shadow:0 0 14px rgba(0,0,0,0.18);
@@ -271,6 +282,7 @@
     #workspace{ flex-direction:column; }
     #editorPane{ flex:none; width:100%; max-width:none; border-right:none; }
     #previewPane{ flex:none; width:100%; }
+    #paneDivider{ display:none; }
     #workspace.editor-only #previewPane{ display:none; }
     #workspace.editor-only #editorPane{ display:flex; flex:1 1 auto; }
     #workspace:not(.editor-only) #editorPane{ display:none; }
@@ -290,6 +302,7 @@
     #toolbar{display:none !important;}
     #workspace{height:auto; display:block;}
     #editorPane{display:none !important;}
+    #paneDivider{display:none !important;}
     #previewPane{padding:0; background:#fff; overflow:visible;}
     #previewControls{display:none !important;}
     .doc-appeal, .doc-memo{box-shadow:none; margin:0; max-width:none; padding:0;}
@@ -788,6 +801,27 @@
     text-align: center;
   }
 
+  /* ---------- 드래그해서 옮길 수 있는 떠다니는 도움말 패널 (모달과 달리 배경을 가리지 않음, 2026.07) ---------- */
+  .floating-panel{
+    display:none;
+    position:fixed; top:110px; left:50%; margin-left:-270px;
+    width:540px; max-width:calc(100vw - 32px);
+    background:#FFFDF8; border-top:4px solid var(--gold); border-radius:8px;
+    box-shadow:0 12px 40px rgba(0,0,0,0.3);
+    z-index:600;
+  }
+  .floating-panel.show{ display:block; }
+  .floating-panel-handle{
+    cursor:move; user-select:none;
+    padding:14px 16px; font-family:'Noto Serif KR', serif; font-weight:700;
+    font-size:14.5px; color:var(--navy); border-bottom:1px solid #eee;
+  }
+  .floating-panel-handle span{
+    float:right; cursor:pointer; color:#999; font-weight:400; font-size:15px;
+  }
+  .floating-panel-handle span:hover{ color:#333; }
+  .floating-panel .statute-modal-body{ padding:16px 20px 20px; margin-bottom:0; }
+
 </style>
 </head>
 <body>
@@ -860,6 +894,7 @@
     </div>
     <textarea id="mdInput" spellcheck="false"></textarea>
   </div>
+  <div id="paneDivider" title="드래그해서 폭 조절"></div>
   <div id="previewPane">
     <div id="previewControls">
       <button id="zoomOut" title="축소">−</button>
@@ -1622,12 +1657,42 @@ const MD_HELP_HTML = `
 
 function showMdHelp(){
   document.getElementById('mdHelpBody').innerHTML = MD_HELP_HTML;
-  document.getElementById('mdHelpModal').style.display = 'flex';
+  document.getElementById('mdHelpModal').classList.add('show');
 }
 function closeMdHelpModal(){
-  document.getElementById('mdHelpModal').style.display = 'none';
+  document.getElementById('mdHelpModal').classList.remove('show');
 }
 document.getElementById('btnMdHelp').addEventListener('click', showMdHelp);
+document.getElementById('mdHelpCloseX').addEventListener('click', closeMdHelpModal);
+
+// 도움말 패널 드래그로 위치 옮기기
+(function(){
+  const panel = document.getElementById('mdHelpModal');
+  const handle = document.getElementById('mdHelpDragHandle');
+  let dragging = false, offsetX = 0, offsetY = 0;
+  handle.addEventListener('mousedown', (e) => {
+    if (e.target.id === 'mdHelpCloseX') return; // 닫기(x) 클릭은 드래그로 취급 안 함
+    dragging = true;
+    const rect = panel.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+    // 처음 드래그하는 순간, 중앙정렬(left:50%+margin-left)을 실제 좌표값으로 고정 전환
+    panel.style.left = rect.left + 'px';
+    panel.style.margin = '0';
+    document.body.style.userSelect = 'none';
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const maxLeft = window.innerWidth - panel.offsetWidth;
+    const maxTop = window.innerHeight - 40; // 최소한 손잡이 부분은 화면 안에 남도록
+    panel.style.left = Math.min(Math.max(0, e.clientX - offsetX), maxLeft) + 'px';
+    panel.style.top = Math.min(Math.max(0, e.clientY - offsetY), maxTop) + 'px';
+  });
+  document.addEventListener('mouseup', () => {
+    dragging = false;
+    document.body.style.userSelect = '';
+  });
+})();
 
 // ===== 편집창 서식 빠른삽입 =====
 function insertMdSnippet(kind){
@@ -1999,6 +2064,32 @@ document.getElementById('layoutEditor').addEventListener('click', () => setLayou
 document.getElementById('layoutBoth').addEventListener('click', () => setLayoutMode('both'));
 document.getElementById('layoutPreview').addEventListener('click', () => setLayoutMode('preview'));
 
+// ---------- 편집창/미리보기 좌우 폭 드래그로 조절 ----------
+(function(){
+  const divider = document.getElementById('paneDivider');
+  const editor = document.getElementById('editorPane');
+  const workspace = document.getElementById('workspace');
+  let dragging = false;
+
+  divider.addEventListener('mousedown', () => {
+    dragging = true;
+    divider.classList.add('dragging');
+    document.body.style.userSelect = 'none';
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const rect = workspace.getBoundingClientRect();
+    let newWidth = e.clientX - rect.left;
+    newWidth = Math.max(220, Math.min(newWidth, rect.width - 260)); // 양쪽 다 너무 좁아지지 않게 최소폭 보장
+    editor.style.flex = '0 0 ' + newWidth + 'px';
+  });
+  document.addEventListener('mouseup', () => {
+    dragging = false;
+    divider.classList.remove('dragging');
+    document.body.style.userSelect = '';
+  });
+})();
+
 // ---------- 전체화면 (appRoot 전체를 전체화면으로 만들고, CSS 클래스로 편집창/미리보기 중 하나만 노출)
 // previewPane이나 editorPane 자체만 전체화면으로 만들면, 그 바깥에 있는 도움말·조문팝업 모달이
 // 전체화면 위로 올라오지 못하는 Fullscreen API의 특성 때문에 모달이 뒤에 가려지는 문제가 있었음(2026.07 발견).
@@ -2062,6 +2153,7 @@ function buildStandaloneHtml(){
   const title = d ? d.name : '문서';
   const clone = document.getElementById('renderOut').cloneNode(true);
   clone.style.zoom = ''; // 화면에서 확대/축소한 배율이 내보낸 파일에 섞여 들어가지 않도록 제거
+  clone.removeAttribute('id'); // #renderOut 전용 폭제한 해제 규칙이 내보낸 파일에는 적용되지 않도록(실제 인쇄/고객화면 폭 유지)
   const articleHtml = clone.outerHTML;
   const styleText = document.querySelector('style').textContent;
   const fonts = '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
@@ -2082,6 +2174,7 @@ function downloadAsDoc(){
   const theme = currentTheme();
   const clone = document.getElementById('renderOut').cloneNode(true);
   clone.style.zoom = ''; // 화면에서 확대/축소한 배율이 내보낸 파일에 섞여 들어가지 않도록 제거
+  clone.removeAttribute('id');
 
   // 이미지: 옛날 파서가 이해하는 legacy 속성(align, width)을 직접 부여
   clone.querySelectorAll('img').forEach(img => {
@@ -2213,11 +2306,12 @@ render();
   </div>
 </div>
 
-<div class="statute-modal-backdrop" id="mdHelpModal" onclick="if(event.target===this) closeMdHelpModal()">
-  <div class="statute-modal-box" style="max-width:540px;">
-    <div class="statute-modal-title">마크다운 문법 도움말</div>
-    <div class="statute-modal-body" id="mdHelpBody" style="text-align:left; max-height:60vh; overflow-y:auto;"></div>
+<div id="mdHelpModal" class="floating-panel">
+  <div id="mdHelpDragHandle" class="floating-panel-handle">
+    마크다운 문법 도움말
+    <span id="mdHelpCloseX" title="닫기">✕</span>
   </div>
+  <div class="statute-modal-body" id="mdHelpBody" style="text-align:left; max-height:60vh; overflow-y:auto;"></div>
 </div>
 
 </div><!-- /#appRoot -->
