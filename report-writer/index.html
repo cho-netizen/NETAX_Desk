@@ -143,6 +143,18 @@
 
   #previewPane{ flex:1; overflow:auto; background:#e9eaee; padding:24px; position:relative; }
 
+  /* 편집창・미리보기 스크롤바를 동일한 모양(얇고 은은하게)으로 통일 */
+  #mdInput, #previewPane{
+    scrollbar-width: thin;
+    scrollbar-color: #b0b6c0 transparent;
+  }
+  #mdInput::-webkit-scrollbar, #previewPane::-webkit-scrollbar{ width:10px; height:10px; }
+  #mdInput::-webkit-scrollbar-track, #previewPane::-webkit-scrollbar-track{ background:transparent; }
+  #mdInput::-webkit-scrollbar-thumb, #previewPane::-webkit-scrollbar-thumb{
+    background:#b0b6c0; border-radius:6px; border:2px solid transparent; background-clip:padding-box;
+  }
+  #mdInput::-webkit-scrollbar-thumb:hover, #previewPane::-webkit-scrollbar-thumb:hover{ background:#8f96a3; background-clip:padding-box; }
+
   #previewControls{
     position:fixed; top:58px; right:24px; z-index:80;
     display:flex; align-items:center; gap:2px;
@@ -2070,6 +2082,7 @@ document.getElementById('layoutPreview').addEventListener('click', () => setLayo
   const editor = document.getElementById('editorPane');
   const workspace = document.getElementById('workspace');
   let dragging = false;
+  const EDGE = 40; // 이 픽셀 이내로 끝까지 밀면 전용 모드로 자동 전환
 
   divider.addEventListener('mousedown', () => {
     dragging = true;
@@ -2079,9 +2092,25 @@ document.getElementById('layoutPreview').addEventListener('click', () => setLayo
   document.addEventListener('mousemove', (e) => {
     if (!dragging) return;
     const rect = workspace.getBoundingClientRect();
-    let newWidth = e.clientX - rect.left;
-    newWidth = Math.max(220, Math.min(newWidth, rect.width - 260)); // 양쪽 다 너무 좁아지지 않게 최소폭 보장
-    editor.style.flex = '0 0 ' + newWidth + 'px';
+    const newWidth = e.clientX - rect.left;
+
+    if (newWidth <= EDGE) {
+      // 왼쪽 끝까지 밀면 미리보기 전용으로 자동 전환
+      dragging = false;
+      divider.classList.remove('dragging');
+      document.body.style.userSelect = '';
+      setLayoutMode('preview');
+      return;
+    }
+    if (newWidth >= rect.width - EDGE) {
+      // 오른쪽 끝까지 밀면 편집창 전용으로 자동 전환
+      dragging = false;
+      divider.classList.remove('dragging');
+      document.body.style.userSelect = '';
+      setLayoutMode('editor');
+      return;
+    }
+    editor.style.flex = '0 0 ' + Math.max(220, Math.min(newWidth, rect.width - 260)) + 'px';
   });
   document.addEventListener('mouseup', () => {
     dragging = false;
