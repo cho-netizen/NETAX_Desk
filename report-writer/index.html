@@ -99,12 +99,27 @@
 
   #editorPane{
     flex:0 0 42%; max-width:640px; border-right:1px solid #ccc;
-    display:flex; flex-direction:column; background:#fff;
+    display:flex; flex-direction:column; background:#fff; position:relative;
   }
   #editorPane .label{
     padding:8px 12px; font-size:12px; color:#666; background:#f2f3f5;
     border-bottom:1px solid #ddd;
   }
+  /* 편집창 자체는 스크롤하지 않고(내부 textarea만 스크롤) 늘 그 자리에 있으므로,
+     previewControls와 달리 position:fixed가 아니라 absolute로 충분함 */
+  #editorControls{
+    position:absolute; top:44px; right:12px; z-index:80;
+    display:flex; align-items:center; gap:2px;
+    background:rgba(32,36,44,0.88); border:1px solid #454e60; border-radius:20px;
+    padding:5px 8px; box-shadow:0 2px 10px rgba(0,0,0,0.25);
+  }
+  #editorControls button{
+    background:none; border:none; color:#e8e8ec; cursor:pointer;
+    font-size:14px; padding:0 8px; height:26px; border-radius:14px;
+    display:inline-flex; align-items:center; justify-content:center;
+  }
+  #editorControls button:hover{ background:rgba(255,255,255,0.14); }
+  #editorControls #zoomLabelEditor{ font-size:11.5px; color:#c7cad4; min-width:34px; height:26px; display:inline-flex; align-items:center; justify-content:center; }
   #mdInput{
     flex:1; border:none; outline:none; resize:none; padding:14px;
     font-family:'D2Coding','Consolas',monospace; font-size:12.5px; line-height:1.6;
@@ -799,6 +814,13 @@
 
 <div id="workspace">
   <div id="editorPane">
+    <div id="editorControls">
+      <button id="zoomOutEditor" title="편집창 글자 축소">−</button>
+      <span id="zoomLabelEditor">100%</span>
+      <button id="zoomInEditor" title="편집창 글자 확대">＋</button>
+      <span class="sep-v"></span>
+      <button id="btnFullscreenEditor" title="편집창 전체화면으로 보기">⛶</button>
+    </div>
     <div class="label">MD 소스 (직접 수정 가능 · 입력 시 자동 저장)</div>
     <textarea id="mdInput" spellcheck="false"></textarea>
   </div>
@@ -1716,6 +1738,35 @@ document.getElementById('btnFullscreen').addEventListener('click', () => {
 document.addEventListener('fullscreenchange', () => {
   document.getElementById('btnFullscreen').title =
     document.fullscreenElement ? '전체화면 나가기' : '전체화면으로 보기';
+});
+
+// ---------- 편집창 확대/축소 (미리보기와 동일한 방식, textarea 글자 크기에 적용) ----------
+let editorZoomPct = 100;
+function applyEditorZoom(){
+  document.getElementById('mdInput').style.zoom = editorZoomPct + '%';
+  document.getElementById('zoomLabelEditor').textContent = editorZoomPct + '%';
+}
+document.getElementById('zoomInEditor').addEventListener('click', () => {
+  editorZoomPct = Math.min(editorZoomPct + 10, 200);
+  applyEditorZoom();
+});
+document.getElementById('zoomOutEditor').addEventListener('click', () => {
+  editorZoomPct = Math.max(editorZoomPct - 10, 50);
+  applyEditorZoom();
+});
+
+// ---------- 편집창 전체화면 ----------
+document.getElementById('btnFullscreenEditor').addEventListener('click', () => {
+  const pane = document.getElementById('editorPane');
+  if (!document.fullscreenElement) {
+    (pane.requestFullscreen || pane.webkitRequestFullscreen)?.call(pane);
+  } else {
+    (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
+  }
+});
+document.addEventListener('fullscreenchange', () => {
+  document.getElementById('btnFullscreenEditor').title =
+    document.fullscreenElement ? '전체화면 나가기' : '편집창 전체화면으로 보기';
 });
 
 function escapeHtml(s){
