@@ -77,6 +77,9 @@
     box-shadow:0 4px 10px rgba(0,0,0,0.3);
   }
   .popupMenu.show{display:flex;}
+  /* addPopup은 툴바 맨 앞(왼쪽 끝)에 있어서, 공용규칙(right:0, 왼쪽으로 펼침)대로 두면
+     화면 밖으로 나가버림 — 왼쪽 끝에 맞춰 오른쪽으로 펼쳐지도록 개별 재정의 */
+  #addPopup{ left:0; right:auto; }
   .popupMenu button{
     background:none; border:none; color:#e8e8ec; text-align:left;
     padding:8px 12px; font-size:12.5px; cursor:pointer; font-family:inherit;
@@ -667,6 +670,7 @@
   }
   .md-content details p:last-child {
     padding-bottom: 16px;
+  }
 
   .mermaid-diagram {
     margin: 16px 0 24px;
