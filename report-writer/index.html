@@ -1711,32 +1711,63 @@ document.getElementById('btnMdHelp').addEventListener('click', showMdHelp);
 document.getElementById('mdHelpCloseX').addEventListener('click', closeMdHelpModal);
 
 // 도움말 패널 드래그로 위치 옮기기
+// - 제목줄뿐 아니라 패널 어디를 잡아도 끌리게 함 (단, 스크롤되는 본문(#mdHelpBody) 안쪽은
+//   손가락/마우스로 내용을 스크롤해야 하므로 예외)
+// - 마우스뿐 아니라 터치(탭・폰)도 동일하게 지원
 (function(){
   const panel = document.getElementById('mdHelpModal');
-  const handle = document.getElementById('mdHelpDragHandle');
   let dragging = false, offsetX = 0, offsetY = 0;
-  handle.addEventListener('mousedown', (e) => {
-    if (e.target.id === 'mdHelpCloseX') return; // 닫기(x) 클릭은 드래그로 취급 안 함
+
+  function shouldStartDrag(target){
+    if (target.id === 'mdHelpCloseX') return false; // 닫기(x) 클릭은 드래그로 취급 안 함
+    if (target.closest('#mdHelpBody')) return false; // 본문 스크롤 영역은 제외
+    return true;
+  }
+
+  function startDrag(clientX, clientY){
     dragging = true;
     const rect = panel.getBoundingClientRect();
-    offsetX = e.clientX - rect.left;
-    offsetY = e.clientY - rect.top;
+    offsetX = clientX - rect.left;
+    offsetY = clientY - rect.top;
     // 처음 드래그하는 순간, 중앙정렬(left:50%+margin-left)을 실제 좌표값으로 고정 전환
     panel.style.left = rect.left + 'px';
     panel.style.margin = '0';
     document.body.style.userSelect = 'none';
-  });
-  document.addEventListener('mousemove', (e) => {
+  }
+
+  function moveDrag(clientX, clientY){
     if (!dragging) return;
     const maxLeft = window.innerWidth - panel.offsetWidth;
     const maxTop = window.innerHeight - 40; // 최소한 손잡이 부분은 화면 안에 남도록
-    panel.style.left = Math.min(Math.max(0, e.clientX - offsetX), maxLeft) + 'px';
-    panel.style.top = Math.min(Math.max(0, e.clientY - offsetY), maxTop) + 'px';
-  });
-  document.addEventListener('mouseup', () => {
+    panel.style.left = Math.min(Math.max(0, clientX - offsetX), maxLeft) + 'px';
+    panel.style.top = Math.min(Math.max(0, clientY - offsetY), maxTop) + 'px';
+  }
+
+  function endDrag(){
     dragging = false;
     document.body.style.userSelect = '';
+  }
+
+  // 마우스
+  panel.addEventListener('mousedown', (e) => {
+    if (!shouldStartDrag(e.target)) return;
+    startDrag(e.clientX, e.clientY);
   });
+  document.addEventListener('mousemove', (e) => moveDrag(e.clientX, e.clientY));
+  document.addEventListener('mouseup', endDrag);
+
+  // 터치(탭・폰)
+  panel.addEventListener('touchstart', (e) => {
+    if (!shouldStartDrag(e.target)) return;
+    const t = e.touches[0];
+    startDrag(t.clientX, t.clientY);
+  }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    if (!dragging) return;
+    const t = e.touches[0];
+    moveDrag(t.clientX, t.clientY);
+  }, { passive: true });
+  document.addEventListener('touchend', endDrag);
 })();
 
 // ===== 편집창 서식 빠른삽입 =====
