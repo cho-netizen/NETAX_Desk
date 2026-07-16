@@ -105,10 +105,6 @@
     flex:0 0 42%; max-width:640px; border-right:1px solid #ccc;
     display:flex; flex-direction:column; background:#fff;
   }
-  #editorPane .label{
-    padding:8px 12px; font-size:12px; color:#666; background:#f2f3f5;
-    border-bottom:1px solid #ddd;
-  }
   #mdHelpBar{
     display:flex; align-items:center; gap:2px; padding:5px 8px;
     background:#f7f8fa; border-bottom:1px solid #ddd;
@@ -837,7 +833,6 @@
 
 <div id="workspace">
   <div id="editorPane">
-    <div class="label">MD 소스 (직접 수정 가능 · 입력 시 자동 저장)</div>
     <div id="mdHelpBar">
       <button data-snip="h2" title="제목">H</button>
       <button data-snip="bold" title="굵게 (Ctrl+B)">B</button>
@@ -862,7 +857,6 @@
       <input type="text" id="replaceInput" placeholder="바꾸기">
       <button id="replaceOne" title="현재 항목만 바꾸기">바꾸기</button>
       <button id="replaceAllBtn" title="전체 바꾸기">모두 바꾸기</button>
-      <button id="findClose" title="닫기 (Esc)">✕</button>
     </div>
     <textarea id="mdInput" spellcheck="false"></textarea>
   </div>
@@ -958,13 +952,9 @@ function loadSelectedIntoEditor(){
   const d = getSelected();
   const mdInput = document.getElementById('mdInput');
   const themeSelect = document.getElementById('themeSelect');
-  const label = document.querySelector('#editorPane .label');
-  if (!d) { mdInput.value = ''; label.textContent = 'MD 소스 (직접 수정 가능 · 입력 시 자동 저장)'; return; }
+  if (!d) { mdInput.value = ''; return; }
   mdInput.value = d.md;
   themeSelect.value = d.theme;
-  label.textContent = (d.format === 'html')
-    ? 'HTML 소스 (원본 스타일・스크립트 제거 후 우리 테마로 렌더링 · 입력 시 자동 저장)'
-    : 'MD 소스 (직접 수정 가능 · 입력 시 자동 저장)';
 }
 
 // ---------- 새 파일 불러오기 ----------
@@ -1790,7 +1780,6 @@ document.getElementById('btnFindOpen').addEventListener('click', () => {
   if (bar.style.display === 'flex') closeFindBar();
   else openFindBar();
 });
-document.getElementById('findClose').addEventListener('click', closeFindBar);
 document.getElementById('findInput').addEventListener('input', updateFindMatches);
 document.getElementById('findNext').addEventListener('click', () => goToFindMatch(1));
 document.getElementById('findPrev').addEventListener('click', () => goToFindMatch(-1));
