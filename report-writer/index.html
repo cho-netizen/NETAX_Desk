@@ -99,27 +99,22 @@
 
   #editorPane{
     flex:0 0 42%; max-width:640px; border-right:1px solid #ccc;
-    display:flex; flex-direction:column; background:#fff; position:relative;
+    display:flex; flex-direction:column; background:#fff;
   }
   #editorPane .label{
     padding:8px 12px; font-size:12px; color:#666; background:#f2f3f5;
     border-bottom:1px solid #ddd;
   }
-  /* 편집창 자체는 스크롤하지 않고(내부 textarea만 스크롤) 늘 그 자리에 있으므로,
-     previewControls와 달리 position:fixed가 아니라 absolute로 충분함 */
-  #editorControls{
-    position:absolute; top:44px; right:12px; z-index:80;
-    display:flex; align-items:center; gap:2px;
-    background:rgba(32,36,44,0.88); border:1px solid #454e60; border-radius:20px;
-    padding:5px 8px; box-shadow:0 2px 10px rgba(0,0,0,0.25);
+  #mdHelpBar{
+    display:flex; align-items:center; gap:2px; padding:5px 8px;
+    background:#f7f8fa; border-bottom:1px solid #ddd;
   }
-  #editorControls button{
-    background:none; border:none; color:#e8e8ec; cursor:pointer;
-    font-size:14px; padding:0 8px; height:26px; border-radius:14px;
-    display:inline-flex; align-items:center; justify-content:center;
+  #mdHelpBar button{
+    background:none; border:1px solid #d0d3d9; color:#444; cursor:pointer;
+    font-size:12.5px; font-weight:700; padding:3px 9px; border-radius:4px; font-family:inherit;
   }
-  #editorControls button:hover{ background:rgba(255,255,255,0.14); }
-  #editorControls #zoomLabelEditor{ font-size:11.5px; color:#c7cad4; min-width:34px; height:26px; display:inline-flex; align-items:center; justify-content:center; }
+  #mdHelpBar button:hover{ background:#e8eaee; }
+  #mdHelpBar #btnMdHelp{ font-weight:400; border-color:#b8bfcc; }
   #mdInput{
     flex:1; border:none; outline:none; resize:none; padding:14px;
     font-family:'D2Coding','Consolas',monospace; font-size:12.5px; line-height:1.6;
@@ -814,14 +809,22 @@
 
 <div id="workspace">
   <div id="editorPane">
-    <div id="editorControls">
-      <button id="zoomOutEditor" title="편집창 글자 축소">−</button>
-      <span id="zoomLabelEditor">100%</span>
-      <button id="zoomInEditor" title="편집창 글자 확대">＋</button>
-      <span class="sep-v"></span>
-      <button id="btnFullscreenEditor" title="편집창 전체화면으로 보기">⛶</button>
-    </div>
     <div class="label">MD 소스 (직접 수정 가능 · 입력 시 자동 저장)</div>
+    <div id="mdHelpBar">
+      <button data-snip="h2" title="제목">H</button>
+      <button data-snip="bold" title="굵게">B</button>
+      <button data-snip="list" title="목록">≡</button>
+      <button data-snip="table" title="표">▦</button>
+      <button data-snip="mermaid" title="순서도(Mermaid, 용역서 테마 전용)">◇</button>
+      <button data-snip="footnote" title="각주(용역서 테마 전용)">¹</button>
+      <button data-snip="hr" title="구분선">―</button>
+      <span style="flex:1"></span>
+      <button id="zoomOutEditor" title="편집창 글자 축소">−</button>
+      <span id="zoomLabelEditor" style="font-size:11.5px; color:#666; min-width:32px; text-align:center;">100%</span>
+      <button id="zoomInEditor" title="편집창 글자 확대">＋</button>
+      <button id="btnFullscreenEditor" title="편집창 전체화면으로 보기">⛶</button>
+      <button id="btnMdHelp" title="마크다운 문법 도움말 전체보기">❓</button>
+    </div>
     <textarea id="mdInput" spellcheck="false"></textarea>
   </div>
   <div id="previewPane">
@@ -1552,8 +1555,104 @@ function closeStatuteModal() {
   document.getElementById('statuteModal').style.display = 'none';
 }
 
+// ===== 마크다운 문법 도움말 =====
+const MD_HELP_HTML = `
+  <p style="margin:0 0 10px; font-size:12px; color:#777;">아래 표기를 그대로 편집창에 입력하면 오른쪽 미리보기에 서식으로 반영됩니다.</p>
+
+  <p style="font-weight:700; color:#0D1B3D; margin:14px 0 6px;">기본 문법</p>
+  <table style="width:100%; border-collapse:collapse; font-size:12.5px;">
+    <tr><td style="padding:4px 8px; border-bottom:1px solid #eee; font-family:monospace; white-space:nowrap;"># 제목 / ## 소제목</td><td style="padding:4px 8px; border-bottom:1px solid #eee;">가장 큰 제목 / 그 아래 제목</td></tr>
+    <tr><td style="padding:4px 8px; border-bottom:1px solid #eee; font-family:monospace;">**굵게**</td><td style="padding:4px 8px; border-bottom:1px solid #eee;"><b>굵게</b> 표시</td></tr>
+    <tr><td style="padding:4px 8px; border-bottom:1px solid #eee; font-family:monospace;">- 항목</td><td style="padding:4px 8px; border-bottom:1px solid #eee;">불릿 목록</td></tr>
+    <tr><td style="padding:4px 8px; border-bottom:1px solid #eee; font-family:monospace;">1. 항목</td><td style="padding:4px 8px; border-bottom:1px solid #eee;">번호 목록</td></tr>
+    <tr><td style="padding:4px 8px; border-bottom:1px solid #eee; font-family:monospace;">&gt; 인용문</td><td style="padding:4px 8px; border-bottom:1px solid #eee;">인용/알림 박스(용역서 테마는 ✅⚠️❌ℹ️로 시작하면 색이 자동으로 입혀짐)</td></tr>
+    <tr><td style="padding:4px 8px; border-bottom:1px solid #eee; font-family:monospace;">| 항목 | 값 |<br>|---|---|</td><td style="padding:4px 8px; border-bottom:1px solid #eee;">표(줄마다 | 로 칸을 나눔)</td></tr>
+    <tr><td style="padding:4px 8px; border-bottom:1px solid #eee; font-family:monospace;">---</td><td style="padding:4px 8px; border-bottom:1px solid #eee;">가로 구분선</td></tr>
+    <tr><td style="padding:4px 8px; font-family:monospace;">[링크 글자](주소)</td><td style="padding:4px 8px;">하이퍼링크</td></tr>
+  </table>
+
+  <p style="font-weight:700; color:#0D1B3D; margin:16px 0 6px;">이 도구 전용 문법 (용역서 테마에서만 그림・효과로 렌더링됨)</p>
+  <table style="width:100%; border-collapse:collapse; font-size:12.5px;">
+    <tr><td style="padding:4px 8px; border-bottom:1px solid #eee; font-family:monospace; white-space:nowrap;">\`\`\`mermaid ... \`\`\`</td><td style="padding:4px 8px; border-bottom:1px solid #eee;">순서도・플로우차트</td></tr>
+    <tr><td style="padding:4px 8px; border-bottom:1px solid #eee; font-family:monospace;">\`\`\`compare<br>항목: 100<br>\`\`\`</td><td style="padding:4px 8px; border-bottom:1px solid #eee;">숫자 비교 막대그래프</td></tr>
+    <tr><td style="padding:4px 8px; border-bottom:1px solid #eee; font-family:monospace;">\`\`\`chart ... \`\`\`</td><td style="padding:4px 8px; border-bottom:1px solid #eee;">파이/막대/선 차트(Chart.js)</td></tr>
+    <tr><td style="padding:4px 8px; border-bottom:1px solid #eee; font-family:monospace;">\`\`\`timeline ... \`\`\`</td><td style="padding:4px 8px; border-bottom:1px solid #eee;">연혁・타임라인</td></tr>
+    <tr><td style="padding:4px 8px; border-bottom:1px solid #eee; font-family:monospace;">본문[^1] ... [^1]: 설명</td><td style="padding:4px 8px; border-bottom:1px solid #eee;">각주(번호+역참조 링크 자동 생성)</td></tr>
+    <tr><td style="padding:4px 8px; font-family:monospace;">조특법 §32</td><td style="padding:4px 8px;">등록된 조문은 자동으로 링크+요약 팝업 연결</td></tr>
+  </table>
+
+  <p style="font-size:11px; color:#999; margin-top:14px;">위 표의 첫 6개(기본 문법)는 청구서・검토서・용역서 테마 모두에서 동작하고, "이 도구 전용" 항목은 용역서 테마를 선택했을 때만 실제로 그림・효과로 바뀝니다.</p>
+`;
+
+function showMdHelp(){
+  document.getElementById('mdHelpBody').innerHTML = MD_HELP_HTML;
+  document.getElementById('mdHelpModal').style.display = 'flex';
+}
+function closeMdHelpModal(){
+  document.getElementById('mdHelpModal').style.display = 'none';
+}
+document.getElementById('btnMdHelp').addEventListener('click', showMdHelp);
+
+// ===== 편집창 서식 빠른삽입 =====
+function insertMdSnippet(kind){
+  const ta = document.getElementById('mdInput');
+  const start = ta.selectionStart;
+  const end = ta.selectionEnd;
+  const before = ta.value.slice(0, start);
+  const selected = ta.value.slice(start, end);
+  const after = ta.value.slice(end);
+  let insertText = '';
+
+  switch (kind) {
+    case 'h2':
+      insertText = '\n## ' + (selected || '제목') + '\n';
+      break;
+    case 'bold':
+      insertText = '**' + (selected || '굵은 글씨') + '**';
+      break;
+    case 'list':
+      insertText = '\n' + (selected
+        ? selected.split('\n').map(l => '- ' + l).join('\n')
+        : '- 항목1\n- 항목2\n- 항목3') + '\n';
+      break;
+    case 'table':
+      insertText = '\n| 항목 | 내용 |\n|---|---|\n| 첫째 | ' + (selected || '') + ' |\n| 둘째 |  |\n';
+      break;
+    case 'mermaid':
+      insertText = '\n```mermaid\nflowchart TD\n    A["시작"] --> B["' + (selected || '끝') + '"]\n```\n';
+      break;
+    case 'footnote': {
+      // 이미 쓰인 [^숫자] 각주 중 가장 큰 번호 다음 번호를 자동으로 부여
+      const used = Array.from(ta.value.matchAll(/\[\^(\d+)\]/g)).map(m => parseInt(m[1], 10));
+      const nextNum = used.length ? Math.max(...used) + 1 : 1;
+      insertText = (selected || '내용') + '[^' + nextNum + ']';
+      // 문서 맨 끝에 각주 정의 자리를 함께 추가
+      const def = '\n\n[^' + nextNum + ']: ';
+      ta.value = before + insertText + after + def;
+      const posAfterRef = before.length + insertText.length;
+      ta.selectionStart = ta.selectionEnd = posAfterRef;
+      ta.focus();
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+      flashSaveState('각주 추가됨');
+      return; // 아래 공통 처리(끝에 붙이지 않음)를 건너뜀
+    }
+    case 'hr':
+      insertText = '\n\n---\n\n';
+      break;
+  }
+
+  ta.value = before + insertText + after;
+  const newPos = before.length + insertText.length;
+  ta.selectionStart = ta.selectionEnd = newPos;
+  ta.focus();
+  ta.dispatchEvent(new Event('input', { bubbles: true }));
+}
+document.querySelectorAll('#mdHelpBar button[data-snip]').forEach(btn => {
+  btn.addEventListener('click', () => insertMdSnippet(btn.dataset.snip));
+});
+
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeStatuteModal();
+  if (e.key === 'Escape') { closeStatuteModal(); closeMdHelpModal(); }
 });
 
 function currentTheme(){
@@ -1912,6 +2011,13 @@ render();
     <div class="statute-modal-title" id="statuteModalTitle"></div>
     <div class="statute-modal-body" id="statuteModalBody"></div>
     <a class="statute-modal-link" id="statuteModalLink" target="_blank" rel="noopener">국가법령정보센터에서 전문 보기 ↗</a>
+  </div>
+</div>
+
+<div class="statute-modal-backdrop" id="mdHelpModal" onclick="if(event.target===this) closeMdHelpModal()">
+  <div class="statute-modal-box" style="max-width:540px;">
+    <div class="statute-modal-title">마크다운 문법 도움말</div>
+    <div class="statute-modal-body" id="mdHelpBody" style="text-align:left; max-height:60vh; overflow-y:auto;"></div>
   </div>
 </div>
 </body>
