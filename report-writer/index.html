@@ -878,7 +878,7 @@
   <button id="btnRender" class="primary iconbtn" title="렌더링 (편집한 내용을 미리보기에 반영)">⟳</button>
   <div id="layoutToggle" style="display:flex;">
     <button id="layoutEditor" class="layout-btn" title="편집창만 보기">◧</button>
-    <button id="layoutBoth" class="layout-btn active" title="편집창 + 미리보기 둘 다 보기 (자동크기 켜짐 · 다시 누르면 끄기)">◫</button>
+    <button id="layoutBoth" class="layout-btn active" title="편집창 + 미리보기 둘 다 보기 (스크롤 동기화 켜짐 · 다시 누르면 끄기)">◫</button>
     <button id="layoutPreview" class="layout-btn" title="미리보기만 보기">◨</button>
   </div>
   <button id="btnNewWindow" class="iconbtn" title="완성된 문서만 새 창(탭)에서 보기 (편집 도구 없이)">↗</button>
@@ -2015,73 +2015,36 @@ async function render(){
       console.error('[외부보고서 렌더링 후처리 오류]', err);
     }
   }
-
-  try { autoFitPaneWidths(); } catch (e) { console.warn('[자동 폭조절 오류]', e); }
 }
 
-// ---------- 편집창/미리보기 폭 자동 조절 (내용 기준) ----------
-// 편집창: 가장 긴 줄의 실제 렌더 폭 / 미리보기: 표・그림・Mermaid 등 안 접히는 요소 중 가장 넓은 것
-// 기준으로 좌우 비율을 계산해서 렌더링할 때마다 다시 맞춘다. ("둘 다 보기" 모드일 때만 적용)
-function measureTextWidth(text, font){
-  try {
-    const canvas = measureTextWidth._canvas || (measureTextWidth._canvas = document.createElement('canvas'));
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('no 2d context');
-    ctx.font = font;
-    return ctx.measureText(text).width;
-  } catch (e) {
-    // canvas를 못 쓰는 환경 대비: 모노스페이스 폰트 기준 평균 글자폭으로 추정
-    return text.length * 7.2;
-  }
-}
+// ---------- 편집창 ↔ 미리보기 스크롤 동기화 (비율 기준 대략적 위치 맞추기) ----------
+// 편집창 원문 줄 수와 미리보기 렌더링 결과의 실제 높이는 서로 다른 척도라 정확히 맞출 수는 없으므로,
+// "전체 스크롤 가능 범위 중 몇 %쯤 왔는가"를 기준으로 대략 맞춘다. 한쪽 스크롤이 다른 쪽을 다시
+// 스크롤시키고, 그게 또 첫 번째를 스크롤시키는 무한루프를 막기 위해 syncingScroll 플래그를 사용.
+let scrollSyncEnabled = true;
+let syncingScroll = false;
 
-function computeEditorIdealWidth(){
-  const ta = document.getElementById('mdInput');
-  const font = '12.5px "D2Coding","Consolas",monospace';
-  let maxW = 0;
-  for (const line of ta.value.split('\n')) {
-    const w = measureTextWidth(line, font);
-    if (w > maxW) maxW = w;
-  }
-  return maxW + 40; // 좌우 padding 여유
-}
-
-function computePreviewIdealWidth(){
-  const d = getSelected();
-  const theme = d ? d.theme : 'appeal';
-
-  if (theme !== 'external') {
-    // 청구서・검토서 표는 table-layout:fixed라 항상 주어진 폭에 맞춰 줄바꿈되므로
-    // scrollWidth로는 "원래 필요한 폭"을 알 수 없음 — 대신 이 문서들이 설계된
-    // 종이 폭(A4, 210mm ≈ 793px)을 그대로 이상적인 폭으로 사용
-    return 793 + 60; // 카드 좌우 여백 여유
-  }
-
-  const out = document.getElementById('renderOut');
-  let maxW = 720; // 표・그림이 없을 때의 기본 읽기 편한 폭
-  out.querySelectorAll('table, pre, img, .mermaid-diagram, .chart-wrapper, .timeline-chart, .compare-chart').forEach(el => {
-    if (el.scrollWidth > maxW) maxW = el.scrollWidth;
-  });
-  return maxW + 60; // 카드 여백 여유
-}
-
-function autoFitPaneWidths(){
-  if (!autoFitEnabled) return; // 사용자가 "둘 다 보기"를 재클릭해서 꺼둔 경우, 드래그한 폭을 그대로 유지
+function syncScrollFrom(sourceEl, targetEl){
+  if (!scrollSyncEnabled || syncingScroll) return;
   const ws = document.getElementById('workspace');
   if (ws.classList.contains('editor-only') || ws.classList.contains('preview-only')) return; // 전용모드일 땐 의미없음
 
-  const workspace = ws.getBoundingClientRect();
-  if (workspace.width < 400) return; // 폰/좁은화면 등에서는 건드리지 않음
+  const sourceMax = sourceEl.scrollHeight - sourceEl.clientHeight;
+  const targetMax = targetEl.scrollHeight - targetEl.clientHeight;
+  if (sourceMax <= 0 || targetMax <= 0) return;
 
-  const editorIdeal = computeEditorIdealWidth();
-  const previewIdeal = computePreviewIdealWidth();
-  const total = editorIdeal + previewIdeal;
-
-  let editorWidth = (total <= workspace.width) ? editorIdeal : (editorIdeal / total) * workspace.width;
-  editorWidth = Math.max(220, Math.min(editorWidth, workspace.width - 260));
-  document.getElementById('editorPane').style.flex = '0 0 ' + editorWidth + 'px';
+  syncingScroll = true;
+  const ratio = sourceEl.scrollTop / sourceMax;
+  targetEl.scrollTop = ratio * targetMax;
+  requestAnimationFrame(() => { syncingScroll = false; });
 }
-window.addEventListener('resize', autoFitPaneWidths);
+
+document.getElementById('mdInput').addEventListener('scroll', () => {
+  syncScrollFrom(document.getElementById('mdInput'), document.getElementById('previewPane'));
+});
+document.getElementById('previewPane').addEventListener('scroll', () => {
+  syncScrollFrom(document.getElementById('previewPane'), document.getElementById('mdInput'));
+});
 
 // ---------- 이벤트 바인딩 ----------
 document.getElementById('docSelect').addEventListener('change', (e) => {
@@ -2178,19 +2141,17 @@ function setLayoutMode(mode){
   document.getElementById('layoutPreview').classList.toggle('active', mode === 'preview');
 }
 document.getElementById('layoutEditor').addEventListener('click', () => setLayoutMode('editor'));
-let autoFitEnabled = true;
 document.getElementById('layoutBoth').addEventListener('click', () => {
   const ws = document.getElementById('workspace');
   const alreadyBoth = !ws.classList.contains('editor-only') && !ws.classList.contains('preview-only');
   if (alreadyBoth) {
-    // 이미 "둘 다 보기"인 상태에서 다시 누르면 자동크기 켜기/끄기 토글 (꺼두면 드래그한 폭이 유지됨)
-    autoFitEnabled = !autoFitEnabled;
-    document.getElementById('layoutBoth').classList.toggle('autofit-off', !autoFitEnabled);
-    document.getElementById('layoutBoth').title = autoFitEnabled
-      ? '편집창 + 미리보기 둘 다 보기 (자동크기 켜짐 · 다시 누르면 끄기)'
-      : '편집창 + 미리보기 둘 다 보기 (자동크기 꺼짐 · 다시 누르면 켜기)';
-    flashSaveState(autoFitEnabled ? '자동크기 켜짐' : '자동크기 꺼짐');
-    if (autoFitEnabled) autoFitPaneWidths();
+    // 이미 "둘 다 보기"인 상태에서 다시 누르면 스크롤 동기화 켜기/끄기 토글
+    scrollSyncEnabled = !scrollSyncEnabled;
+    document.getElementById('layoutBoth').classList.toggle('autofit-off', !scrollSyncEnabled);
+    document.getElementById('layoutBoth').title = scrollSyncEnabled
+      ? '편집창 + 미리보기 둘 다 보기 (스크롤 동기화 켜짐 · 다시 누르면 끄기)'
+      : '편집창 + 미리보기 둘 다 보기 (스크롤 동기화 꺼짐 · 다시 누르면 켜기)';
+    flashSaveState(scrollSyncEnabled ? '스크롤 동기화 켜짐' : '스크롤 동기화 꺼짐');
   } else {
     setLayoutMode('both');
   }
