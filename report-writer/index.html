@@ -20,7 +20,8 @@
   :root{ --bar-bg:#20242c; --bar-fg:#e8e8ec; --accent:#5b6b8c; --navy:#0D1B3D; --navy-deep:#081226; --gold:#C8A244; --gold-light:#DCC17E; }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;background:#e9eaee;font-family:'Noto Sans KR',sans-serif; height:100%;}
-  body{ display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+  body{ height:100vh; overflow:hidden; }
+  #appRoot{ display:flex; flex-direction:column; height:100%; }
 
   /* ---------- 상단 툴바 (편집용, 인쇄시 숨김) ---------- */
   #toolbar{
@@ -140,9 +141,16 @@
   #previewControls button:hover{ background:rgba(255,255,255,0.14); }
   #previewControls #zoomLabel{ font-size:11.5px; color:#c7cad4; min-width:34px; height:26px; display:inline-flex; align-items:center; justify-content:center; }
   #previewControls .sep-v{ width:1px; height:16px; background:#454e60; margin:0 4px; }
-  /* 전체화면(previewPane 자체를 전체화면으로) 상태에서는 배경을 그대로 유지해 카드가 화면 중앙에 떠보이게 함 */
-  #previewPane:fullscreen{ padding:40px; }
-  #previewPane:-webkit-full-screen{ padding:40px; }
+
+  /* ---------- 전체화면: appRoot 전체를 전체화면으로 만들고, 클래스로 편집창/미리보기 중 하나만 노출 ----------
+     (모달이 전체화면 뒤에 숨는 문제를 막기 위해 previewPane/editorPane 개별이 아니라 appRoot를 전체화면 대상으로 삼음) */
+  #appRoot:fullscreen{ background:#e9eaee; }
+  #appRoot:fullscreen.fs-preview #toolbar,
+  #appRoot:fullscreen.fs-preview #editorPane,
+  #appRoot:fullscreen.fs-editor #toolbar,
+  #appRoot:fullscreen.fs-editor #previewPane{ display:none; }
+  #appRoot:fullscreen.fs-preview #previewPane{ flex:1 1 100%; padding:40px; }
+  #appRoot:fullscreen.fs-editor #editorPane{ flex:1 1 100%; max-width:none; }
 
   /* =========================================================
      테마 1 : 불복청구서 / 심판청구서 (법정서식형)
@@ -772,6 +780,7 @@
 </style>
 </head>
 <body>
+<div id="appRoot">
 
 <div id="toolbar">
   <div id="docStepper" style="position:relative; display:flex; border:1px solid #4a5268; border-radius:4px; overflow:visible;">
@@ -1814,6 +1823,26 @@ document.getElementById('layoutEditor').addEventListener('click', () => setLayou
 document.getElementById('layoutBoth').addEventListener('click', () => setLayoutMode('both'));
 document.getElementById('layoutPreview').addEventListener('click', () => setLayoutMode('preview'));
 
+// ---------- 전체화면 (appRoot 전체를 전체화면으로 만들고, CSS 클래스로 편집창/미리보기 중 하나만 노출)
+// previewPane이나 editorPane 자체만 전체화면으로 만들면, 그 바깥에 있는 도움말·조문팝업 모달이
+// 전체화면 위로 올라오지 못하는 Fullscreen API의 특성 때문에 모달이 뒤에 가려지는 문제가 있었음(2026.07 발견).
+// appRoot(툴바+작업공간+모달 전체를 포함하는 최상위 래퍼)를 전체화면 대상으로 삼아 이 문제를 근본적으로 해결.
+function toggleFullscreen(mode){
+  const root = document.getElementById('appRoot');
+  if (!document.fullscreenElement) {
+    root.classList.add(mode === 'editor' ? 'fs-editor' : 'fs-preview');
+    (root.requestFullscreen || root.webkitRequestFullscreen)?.call(root);
+  } else {
+    (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
+  }
+}
+document.addEventListener('fullscreenchange', () => {
+  const inFs = !!document.fullscreenElement;
+  if (!inFs) document.getElementById('appRoot').classList.remove('fs-editor', 'fs-preview');
+  document.getElementById('btnFullscreen').title = inFs ? '전체화면 나가기' : '전체화면으로 보기';
+  document.getElementById('btnFullscreenEditor').title = inFs ? '전체화면 나가기' : '편집창 전체화면으로 보기';
+});
+
 // ---------- 미리보기 확대/축소 ----------
 let previewZoomPct = 100;
 function applyPreviewZoom(){
@@ -1828,20 +1857,7 @@ document.getElementById('zoomOut').addEventListener('click', () => {
   previewZoomPct = Math.max(previewZoomPct - 10, 50);
   applyPreviewZoom();
 });
-
-// ---------- 미리보기 전체화면 (previewPane 자체만 전체화면 → 툴바는 자동으로 안 보임) ----------
-document.getElementById('btnFullscreen').addEventListener('click', () => {
-  const pane = document.getElementById('previewPane');
-  if (!document.fullscreenElement) {
-    (pane.requestFullscreen || pane.webkitRequestFullscreen)?.call(pane);
-  } else {
-    (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
-  }
-});
-document.addEventListener('fullscreenchange', () => {
-  document.getElementById('btnFullscreen').title =
-    document.fullscreenElement ? '전체화면 나가기' : '전체화면으로 보기';
-});
+document.getElementById('btnFullscreen').addEventListener('click', () => toggleFullscreen('preview'));
 
 // ---------- 편집창 확대/축소 (미리보기와 동일한 방식, textarea 글자 크기에 적용) ----------
 let editorZoomPct = 100;
@@ -1857,20 +1873,7 @@ document.getElementById('zoomOutEditor').addEventListener('click', () => {
   editorZoomPct = Math.max(editorZoomPct - 10, 50);
   applyEditorZoom();
 });
-
-// ---------- 편집창 전체화면 ----------
-document.getElementById('btnFullscreenEditor').addEventListener('click', () => {
-  const pane = document.getElementById('editorPane');
-  if (!document.fullscreenElement) {
-    (pane.requestFullscreen || pane.webkitRequestFullscreen)?.call(pane);
-  } else {
-    (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
-  }
-});
-document.addEventListener('fullscreenchange', () => {
-  document.getElementById('btnFullscreenEditor').title =
-    document.fullscreenElement ? '전체화면 나가기' : '편집창 전체화면으로 보기';
-});
+document.getElementById('btnFullscreenEditor').addEventListener('click', () => toggleFullscreen('editor'));
 
 function escapeHtml(s){
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -2024,5 +2027,7 @@ render();
     <div class="statute-modal-body" id="mdHelpBody" style="text-align:left; max-height:60vh; overflow-y:auto;"></div>
   </div>
 </div>
+
+</div><!-- /#appRoot -->
 </body>
 </html>
