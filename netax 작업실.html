@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231b2a41'/%3E%3Ctext x='32' y='45' font-family='Georgia,serif' font-size='34' font-weight='700' fill='%23c9a227' text-anchor='middle'%3EN%3C/text%3E%3C/svg%3E">
+<title>NX 작업실 — 레이아웃 프로토타입</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#0D1B3D; --navy-deep:#081226; --gold:#C8A244; --gold-light:#DCC17E;
+    --bar-bg:#20242c; --bar-fg:#e8e8ec;
+    --bg:#e9eaee; --panel:#ffffff; --line:#d8dce3; --ink:#1b2430; --sub:#6b7280;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;background:var(--bg);font-family:'Noto Sans KR',sans-serif;color:var(--ink);}
+
+  /* ===== 상단바 ===== */
+  .topbar{
+    display:flex; align-items:center; gap:14px;
+    height:52px; padding:0 16px; background:var(--navy); color:#fff;
+    border-bottom:3px solid var(--gold); flex-shrink:0;
+  }
+  .brand{ font-family:'Noto Serif KR',serif; font-weight:700; font-size:15px; color:var(--gold-light); letter-spacing:0.5px; white-space:nowrap; }
+  .case-select{ display:flex; align-items:center; gap:8px; }
+  .case-select select{
+    background:rgba(255,255,255,0.08); color:#fff; border:1px solid rgba(255,255,255,0.25);
+    border-radius:6px; padding:6px 10px; font-family:inherit; font-size:12.5px; cursor:pointer;
+  }
+  .case-select select:focus{ outline:2px solid var(--gold-light); outline-offset:1px; }
+  .case-path{ font-size:11.5px; color:rgba(255,255,255,0.55); }
+  .spacer{ flex:1; }
+  .layout-toggle{
+    display:flex; align-items:center; gap:4px; background:rgba(255,255,255,0.08);
+    border:1px solid rgba(255,255,255,0.25); border-radius:8px; padding:3px;
+  }
+  .layout-toggle button{
+    background:none; border:none; color:rgba(255,255,255,0.55); cursor:pointer;
+    padding:6px 9px; border-radius:6px; font-size:15px; line-height:1; font-family:inherit;
+  }
+  .layout-toggle button.active{ background:var(--gold); color:var(--navy-deep); }
+  .layout-toggle button:hover:not(.active){ color:#fff; }
+
+  /* ===== 작업 영역 ===== */
+  .workspace{ display:flex; flex:1; min-height:0; }
+  .workspace.layout-row{ flex-direction:row; }
+  .workspace.layout-col{ flex-direction:column; }
+
+  .panel{ display:flex; flex-direction:column; min-width:0; min-height:0; background:var(--panel); }
+  .layout-row .panel.chat{ flex:0 0 40%; border-right:1px solid var(--line); }
+  .layout-row .panel.explorer{ flex:1; }
+  .layout-col .panel.chat{ flex:0 0 auto; min-height:300px; max-height:42%; border-bottom:1px solid var(--line); }
+  .layout-col .panel.explorer{ flex:1; }
+
+  .panel-head{
+    display:flex; align-items:center; gap:8px; height:38px; padding:0 14px;
+    border-bottom:1px solid var(--line); font-size:12.5px; font-weight:700; color:var(--navy);
+    flex-shrink:0; background:#f4f5f8;
+  }
+  .panel-head .dot{ width:6px; height:6px; border-radius:50%; background:var(--gold); }
+
+  /* ===== AI 채팅 패널 ===== */
+  .chat-body{ flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:12px; }
+  .msg{ max-width:82%; padding:10px 13px; border-radius:10px; font-size:13.5px; line-height:1.55; }
+  .msg.ai{ background:#f0f2f6; color:var(--ink); align-self:flex-start; border-top-left-radius:2px; }
+  .msg.me{ background:var(--navy); color:#fff; align-self:flex-end; border-top-right-radius:2px; }
+  .chat-input{ display:flex; gap:8px; padding:12px; border-top:1px solid var(--line); flex-shrink:0; }
+  .chat-input input{
+    flex:1; border:1px solid var(--line); border-radius:8px; padding:9px 12px;
+    font-family:inherit; font-size:13.5px;
+  }
+  .chat-input button{
+    background:var(--navy); color:#fff; border:none; border-radius:8px;
+    padding:9px 16px; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer;
+  }
+  .chat-input button:hover{ background:var(--navy-deep); }
+
+  /* ===== 탐색기 / 편집기 패널 ===== */
+  .breadcrumb{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--sub); }
+  .breadcrumb b{ color:var(--navy); }
+  .breadcrumb .sep{ color:#c3c8d1; }
+  .explorer-body{ flex:1; overflow-y:auto; padding:6px; }
+  .folder-row, .file-row{
+    display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:6px;
+    font-size:13.5px; cursor:pointer;
+  }
+  .folder-row:hover, .file-row:hover{ background:#f0f2f6; }
+  .folder-row .icon{ color:var(--gold); font-size:15px; }
+  .file-row .icon{ color:#8a93a3; font-size:15px; }
+  .file-row .meta{ margin-left:auto; font-size:11.5px; color:var(--sub); }
+
+  /* ===== 탐색기 상태 표시 ===== */
+  .explorer-status{ padding:16px 14px; font-size:13px; color:var(--sub); }
+  .explorer-status.is-error{ color:#a83232; }
+  .explorer-empty{ padding:16px 14px; font-size:12.5px; color:var(--sub); }
+
+  /* ===== 편집기(실제 iframe) ===== */
+  .editor-toolbar{
+    display:flex; align-items:center; gap:10px; height:40px; padding:0 12px;
+    border-bottom:1px solid var(--line); flex-shrink:0; background:#f9fafb;
+  }
+  .editor-filename{ font-size:12.5px; color:var(--sub); }
+  .editor-frame{ flex:1; width:100%; border:none; background:#fff; }
+  .back-btn{
+    background:none; border:1px solid var(--line); border-radius:6px; padding:5px 11px;
+    font-size:12px; color:var(--sub); cursor:pointer; font-family:inherit;
+  }
+  .back-btn:hover{ border-color:var(--navy); color:var(--navy); }
+
+  @media (max-width: 720px){
+    .layout-row .panel.chat{ flex:0 0 45%; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="brand">NX 작업실</div>
+    <div class="case-select">
+      <select id="customerSelect">
+        <option value="">고객 불러오는 중…</option>
+      </select>
+      <select id="caseSelect">
+        <option value="">사건 불러오는 중…</option>
+      </select>
+    </div>
+    <div class="case-path" id="casePath">불러오는 중…</div>
+    <div class="spacer"></div>
+    <div class="layout-toggle" role="group" aria-label="레이아웃 전환">
+      <button id="btnRow" title="좌우 배치" aria-label="좌우 배치">⬓</button>
+      <button id="btnCol" title="상하 배치" aria-label="상하 배치">⬒</button>
+    </div>
+  </div>
+
+  <div class="workspace" id="workspace">
+    <div class="panel chat">
+      <div class="panel-head"><span class="dot"></span> AI 채팅</div>
+      <div class="chat-body" id="chatBody">
+        <div class="msg ai">고광민 원장님 법인전환 건, 지금 이어서 진행할까요? 04_자료확보 폴더에 아직 재무제표가 안 올라와 있습니다.</div>
+        <div class="msg me">응, 처리방향분석 문서부터 다시 열어줘</div>
+        <div class="msg ai">오른쪽에서 03_처리방향분석 폴더를 열었습니다. 문서를 클릭하면 바로 편집기로 전환됩니다.</div>
+      </div>
+      <div class="chat-input">
+        <input type="text" placeholder="메시지를 입력하세요…" aria-label="메시지 입력">
+        <button type="button">보내기</button>
+      </div>
+    </div>
+
+    <div class="panel explorer">
+      <div class="panel-head">
+        <span class="dot"></span>
+        <div class="breadcrumb" id="breadcrumb">&nbsp;</div>
+      </div>
+
+      <div id="explorerView">
+        <div class="explorer-body" id="explorerBody">
+          <div class="explorer-status">불러오는 중…</div>
+        </div>
+      </div>
+
+      <div id="editorView" style="display:none; flex:1; flex-direction:column; min-height:0;">
+        <div class="editor-toolbar">
+          <button class="back-btn" id="btnBack">‹ 탐색기로 돌아가기</button>
+          <span class="editor-filename" id="editorFilename"></span>
+        </div>
+        <iframe id="editorFrame" class="editor-frame" title="문서 편집기"></iframe>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ============================================================
+  // 설정 — 아래 두 값만 채우면 실제 데이터로 동작합니다.
+  // ============================================================
+  const GAS_URL = 'https://script.google.com/macros/s/https://script.google.com/macros/s/AKfycbz9pam82WMSMKHYo6-6EtEguMbpZ0AaqHirVzwcW6ZFRsdq4WGluvhpPkYUoTE2l_bm/exec/exec';
+  const REPORT_WRITER_URL = 'https://desk.netax.kr/report-writer/'; // 실제 report-writer 경로로 교체
+
+  // ============================================================
+  // 레이아웃 전환 (기존 그대로)
+  // ============================================================
+  const workspace = document.getElementById('workspace');
+  const btnRow = document.getElementById('btnRow');
+  const btnCol = document.getElementById('btnCol');
+  const LAYOUT_KEY = 'nx_workspace_layout';
+
+  function applyLayout(mode){
+    workspace.classList.toggle('layout-row', mode === 'row');
+    workspace.classList.toggle('layout-col', mode === 'col');
+    btnRow.classList.toggle('active', mode === 'row');
+    btnCol.classList.toggle('active', mode === 'col');
+  }
+  function detectDefault(){
+    return window.innerWidth >= window.innerHeight ? 'row' : 'col';
+  }
+  function initLayout(){
+    const saved = localStorage.getItem(LAYOUT_KEY);
+    applyLayout(saved || detectDefault());
+  }
+  btnRow.addEventListener('click', () => { applyLayout('row'); localStorage.setItem(LAYOUT_KEY, 'row'); });
+  btnCol.addEventListener('click', () => { applyLayout('col'); localStorage.setItem(LAYOUT_KEY, 'col'); });
+  initLayout();
+
+  // ============================================================
+  // GAS 호출 (listFolder)
+  // ============================================================
+  async function callGas(action, payload){
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      // GAS 웹앱의 CORS preflight 회피를 위해 text/plain으로 보냄 (서버에서 JSON.parse로 처리)
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(Object.assign({ action }, payload))
+    });
+    if (!res.ok) throw new Error('네트워크 오류 (status ' + res.status + ')');
+    return res.json();
+  }
+
+  async function listFolder(path){
+    const data = await callGas('listFolder', { path });
+    if (data.error) throw new Error(data.error);
+    return data; // { path, folderId, folders:[{id,name}], files:[{id,name,mimeType,modifiedDate,url}] }
+  }
+
+  // ============================================================
+  // 상태
+  // ============================================================
+  const customerSelect = document.getElementById('customerSelect');
+  const caseSelect = document.getElementById('caseSelect');
+  const casePathEl = document.getElementById('casePath');
+  const breadcrumbEl = document.getElementById('breadcrumb');
+  const explorerBody = document.getElementById('explorerBody');
+  const explorerView = document.getElementById('explorerView');
+  const editorView = document.getElementById('editorView');
+  const editorFrame = document.getElementById('editorFrame');
+  const editorFilename = document.getElementById('editorFilename');
+
+  // explorerPath: [고객명, 사건명, ...하위 폴더들] — 항상 최소 2단계(고객/사건) 유지
+  let explorerPath = [];
+
+  function setSelectOptions(selectEl, names, placeholderIfEmpty){
+    selectEl.innerHTML = '';
+    if (!names.length){
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = placeholderIfEmpty;
+      selectEl.appendChild(opt);
+      return;
+    }
+    names.forEach(name=>{
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      selectEl.appendChild(opt);
+    });
+  }
+
+  function updateCasePath(){
+    const c = customerSelect.value;
+    const s = caseSelect.value;
+    casePathEl.textContent = (c && s) ? (c + ' / ' + s) : '고객/사건을 선택하세요';
+  }
+
+  function renderBreadcrumb(){
+    breadcrumbEl.innerHTML = '';
+    explorerPath.forEach((seg, i)=>{
+      const b = document.createElement('b');
+      b.textContent = seg;
+      if (i < explorerPath.length - 1){
+        b.style.cursor = 'pointer';
+        b.addEventListener('click', ()=> navigateTo(explorerPath.slice(0, i + 1)));
+      }
+      breadcrumbEl.appendChild(b);
+      if (i < explorerPath.length - 1){
+        const sep = document.createElement('span');
+        sep.className = 'sep';
+        sep.textContent = '›';
+        breadcrumbEl.appendChild(sep);
+      }
+    });
+  }
+
+  function showExplorerStatus(text, isError){
+    explorerBody.innerHTML = '';
+    const div = document.createElement('div');
+    div.className = 'explorer-status' + (isError ? ' is-error' : '');
+    div.textContent = text;
+    explorerBody.appendChild(div);
+  }
+
+  function iconForFile(mimeType){
+    if (mimeType && mimeType.indexOf('folder') !== -1) return '📁';
+    return '📄';
+  }
+
+  function renderExplorer(data){
+    explorerPath = data.path;
+    renderBreadcrumb();
+    explorerBody.innerHTML = '';
+
+    // 사건(2단계) 아래로 내려온 상태에서만 ".." 상위 폴더 이동 허용
+    if (explorerPath.length > 2){
+      const up = document.createElement('div');
+      up.className = 'folder-row';
+      up.innerHTML = '<span class="icon">📁</span> .. (상위 폴더)';
+      up.addEventListener('click', ()=> navigateTo(explorerPath.slice(0, -1)));
+      explorerBody.appendChild(up);
+    }
+
+    data.folders.forEach(f=>{
+      const row = document.createElement('div');
+      row.className = 'folder-row';
+      row.innerHTML = '<span class="icon">📁</span> ' + escapeHtml(f.name);
+      row.addEventListener('click', ()=> navigateTo(explorerPath.concat([f.name])));
+      explorerBody.appendChild(row);
+    });
+
+    data.files.forEach(f=>{
+      const row = document.createElement('div');
+      row.className = 'file-row';
+      row.innerHTML = '<span class="icon">' + iconForFile(f.mimeType) + '</span> '
+        + escapeHtml(f.name) + '<span class="meta">' + escapeHtml(f.modifiedDate || '') + '</span>';
+      row.addEventListener('click', ()=> openEditor(f));
+      explorerBody.appendChild(row);
+    });
+
+    if (!data.folders.length && !data.files.length){
+      const empty = document.createElement('div');
+      empty.className = 'explorer-empty';
+      empty.textContent = '이 폴더는 비어 있습니다.';
+      explorerBody.appendChild(empty);
+    }
+  }
+
+  function escapeHtml(s){
+    return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  async function navigateTo(path){
+    showExplorerStatus('불러오는 중…');
+    try{
+      const data = await listFolder(path);
+      renderExplorer(data);
+    }catch(err){
+      showExplorerStatus('폴더를 불러오지 못했습니다: ' + err.message, true);
+    }
+  }
+
+  function openEditor(file){
+    explorerView.style.display = 'none';
+    editorView.style.display = 'flex';
+    editorFilename.textContent = file.name;
+    editorFrame.src = REPORT_WRITER_URL + '?fileId=' + encodeURIComponent(file.id);
+  }
+
+  document.getElementById('btnBack').addEventListener('click', ()=>{
+    editorFrame.src = 'about:blank';
+    editorView.style.display = 'none';
+    explorerView.style.display = 'block';
+  });
+
+  // ============================================================
+  // 고객/사건 선택 로딩
+  // ============================================================
+  async function loadCustomers(){
+    setSelectOptions(customerSelect, [], '고객 불러오는 중…');
+    try{
+      const data = await listFolder([]);
+      const names = data.folders.map(f => f.name);
+      setSelectOptions(customerSelect, names, '고객 폴더 없음');
+      if (names.length) await loadCases(names[0]);
+      updateCasePath();
+    }catch(err){
+      setSelectOptions(customerSelect, [], '불러오기 실패');
+      showExplorerStatus('고객 목록을 불러오지 못했습니다: ' + err.message, true);
+    }
+  }
+
+  async function loadCases(customerName){
+    setSelectOptions(caseSelect, [], '사건 불러오는 중…');
+    try{
+      const data = await listFolder([customerName]);
+      const names = data.folders.map(f => f.name);
+      setSelectOptions(caseSelect, names, '사건 폴더 없음');
+      updateCasePath();
+      if (names.length) await navigateTo([customerName, names[0]]);
+      else showExplorerStatus('이 고객에게 등록된 사건 폴더가 없습니다.');
+    }catch(err){
+      setSelectOptions(caseSelect, [], '불러오기 실패');
+      showExplorerStatus('사건 목록을 불러오지 못했습니다: ' + err.message, true);
+    }
+  }
+
+  customerSelect.addEventListener('change', ()=>{
+    if (customerSelect.value) loadCases(customerSelect.value);
+  });
+  caseSelect.addEventListener('change', ()=>{
+    if (customerSelect.value && caseSelect.value){
+      updateCasePath();
+      navigateTo([customerSelect.value, caseSelect.value]);
+    }
+  });
+
+  loadCustomers();
+</script>
+</body>
+</html>
