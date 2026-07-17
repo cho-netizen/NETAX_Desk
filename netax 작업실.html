@@ -198,7 +198,7 @@
   }
   .panel-head .dot{ width:6px; height:6px; border-radius:50%; background:var(--gold); }
   .autoref-toggle{
-    display:flex; align-items:center; gap:6px;
+    display:flex; align-items:center; gap:6px; flex-shrink:0;
     font-family:inherit; font-size:11.5px; font-weight:700; cursor:pointer;
     border:1px solid var(--line); border-radius:20px; padding:4px 10px 4px 8px;
     background:#eef0f3; color:#8a93a3;
@@ -255,7 +255,7 @@
   .file-row .file-check, .folder-row .file-check{ flex-shrink:0; cursor:pointer; accent-color:var(--gold); width:14px; height:14px; }
   .file-row.is-selected, .folder-row.is-selected{ background:#fbf4e3; }
   .selection-inline{
-    display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--navy);
+    display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--navy); flex-shrink:0;
     background:#fbf4e3; border:1px solid var(--gold); border-radius:20px; padding:4px 8px;
   }
   .selection-inline button{
@@ -299,6 +299,12 @@
       <button id="btnCol" title="상하 배치" aria-label="상하 배치">⬒</button>
     </div>
     <div class="spacer"></div>
+    <div id="selectionInline" class="selection-inline" style="display:none;">
+      <span id="selectionCountText"></span>
+      <button type="button" id="btnAttachSelected">첨부</button>
+      <button type="button" id="btnClearSelected" class="ghost">취소</button>
+    </div>
+    <button type="button" id="btnAutoRef" class="autoref-toggle" title="자동참조 모드: AI가 알아서 폴더/파일을 읽을지, 명시적으로 요청했을 때만 읽을지"><span class="dot"></span>자동참조 OFF</button>
     <button id="btnOpenSettings" class="tb-btn" title="AI 설정">⚙ 설정</button>
     <button id="btnOpenScan" class="tb-btn" title="문서 스캔 · PDF 조립">📷 스캔</button>
     <button id="btnOpenFullEditor" class="tb-btn" title="전체화면으로 직접 편집 (AI 개입 없이)">🖋 편집</button>
@@ -425,16 +431,6 @@
 
   <div class="workspace" id="workspace">
     <div class="panel chat">
-      <div class="panel-head">
-        <span class="dot"></span> AI 채팅
-        <div class="spacer"></div>
-        <div id="selectionInline" class="selection-inline" style="display:none;">
-          <span id="selectionCountText"></span>
-          <button type="button" id="btnAttachSelected">첨부</button>
-          <button type="button" id="btnClearSelected" class="ghost">취소</button>
-        </div>
-        <button type="button" id="btnAutoRef" class="autoref-toggle" title="자동참조 모드: AI가 알아서 폴더/파일을 읽을지, 명시적으로 요청했을 때만 읽을지"><span class="dot"></span>자동참조 OFF</button>
-      </div>
       <div class="chat-body" id="chatBody">
         <div class="msg ai">안녕하세요. 우측 탐색기에서 보고 계신 위치나 열어두신 파일에 대해 물어보시면 답변해드립니다. (자동참조 토글로 "알아서 읽기" 여부를 바꿀 수 있어요, 또는 우측 파일을 여기로 끌어다 놓으셔도 됩니다)</div>
       </div>
@@ -446,8 +442,7 @@
     </div>
 
     <div class="panel explorer">
-      <div class="panel-head">
-        <span class="dot"></span>
+      <div class="panel-head" id="explorerPanelHead">
         <div class="breadcrumb" id="breadcrumb">&nbsp;</div>
       </div>
 
@@ -527,6 +522,7 @@
   const explorerBody = document.getElementById('explorerBody');
   const explorerView = document.getElementById('explorerView');
   const editorView = document.getElementById('editorView');
+  const explorerPanelHead = document.getElementById('explorerPanelHead');
   const editorFrame = document.getElementById('editorFrame');
   const editorFilename = document.getElementById('editorFilename');
 
@@ -739,6 +735,7 @@
   function openEditor(file){
     explorerView.style.display = 'none';
     editorView.style.display = 'flex';
+    explorerPanelHead.style.display = 'none'; // 편집기 툴바(뒤로가기+파일명)와 중복되므로 숨김
     editorFilename.textContent = file.name;
     currentOpenFile = { id: file.id, name: file.name, mimeType: file.mimeType };
 
@@ -756,6 +753,7 @@
     editorFrame.src = 'about:blank';
     editorView.style.display = 'none';
     explorerView.style.display = 'block';
+    explorerPanelHead.style.display = 'flex'; // 탐색 중일 때는 경로표시줄 다시 보이게
     currentOpenFile = null;
     isReportWriterOpen = false;
   });
