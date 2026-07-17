@@ -110,6 +110,17 @@
   .folder-row .icon{ color:var(--gold); font-size:15px; }
   .file-row .icon{ color:#8a93a3; font-size:15px; }
   .file-row .meta{ margin-left:auto; font-size:11.5px; color:var(--sub); }
+  .file-row .file-check{ flex-shrink:0; cursor:pointer; accent-color:var(--gold); width:14px; height:14px; }
+  .file-row.is-selected{ background:#fbf4e3; }
+  .selection-bar{
+    display:flex; align-items:center; gap:10px; padding:8px 14px; background:#fbf4e3;
+    border-bottom:1px solid var(--line); font-size:12.5px; color:var(--navy);
+  }
+  .selection-bar button{
+    font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; border-radius:6px; padding:4px 10px;
+    border:1px solid var(--navy); background:var(--navy); color:#fff;
+  }
+  .selection-bar button.ghost{ background:none; color:var(--sub); border-color:var(--line); }
 
   /* ===== 탐색기 상태 표시 ===== */
   .explorer-status{ padding:16px 14px; font-size:13px; color:var(--sub); }
@@ -175,6 +186,7 @@
       </div>
 
       <div id="explorerView">
+        <div class="selection-bar" id="selectionBar" style="display:none;"></div>
         <div class="explorer-body" id="explorerBody">
           <div class="explorer-status">불러오는 중…</div>
         </div>
@@ -256,6 +268,10 @@
 
   // explorerPath: [고객명, 사건명, ...하위 폴더들] — 항상 최소 2단계(고객/사건) 유지
   let explorerPath = [];
+  // 체크박스로 선택된 파일들 (여러 개 골라서 한 번에 채팅에 첨부하기 위함)
+  let selectedFileIds = new Set();
+  let lastRenderedFiles = []; // 현재 화면에 그려진 파일 목록 (id로 다시 찾기 위함)
+  const selectionBar = document.getElementById('selectionBar');
 
   function setSelectOptions(selectEl, names, placeholderIfEmpty){
     selectEl.innerHTML = '';
@@ -312,11 +328,51 @@
     return '📄';
   }
 
+  function renderSelectionBar(){
+    if (!selectedFileIds.size){
+      selectionBar.style.display = 'none';
+      selectionBar.innerHTML = '';
+      return;
+    }
+    selectionBar.style.display = 'flex';
+    selectionBar.innerHTML = selectedFileIds.size + '개 선택됨';
+    const btnAttach = document.createElement('button');
+    btnAttach.textContent = '채팅에 첨부';
+    btnAttach.addEventListener('click', attachSelectedFiles);
+    const btnClear = document.createElement('button');
+    btnClear.className = 'ghost';
+    btnClear.textContent = '선택 해제';
+    btnClear.addEventListener('click', ()=>{ selectedFileIds.clear(); refreshSelectionUi(); });
+    selectionBar.appendChild(btnAttach);
+    selectionBar.appendChild(btnClear);
+  }
+
+  // 체크박스 상태와 선택바를 다시 그림 (파일 목록 자체를 새로 그리지 않고 표시만 갱신)
+  function refreshSelectionUi(){
+    explorerBody.querySelectorAll('.file-row').forEach(row=>{
+      const id = row.dataset.fileId;
+      const checked = selectedFileIds.has(id);
+      row.classList.toggle('is-selected', checked);
+      const cb = row.querySelector('.file-check');
+      if (cb) cb.checked = checked;
+    });
+    renderSelectionBar();
+  }
+
+  // 선택된 파일들을 한 번에 채팅 첨부 목록으로 보냄
+  function attachSelectedFiles(){
+    lastRenderedFiles.filter(f => selectedFileIds.has(f.id)).forEach(addAttachment);
+    selectedFileIds.clear();
+    refreshSelectionUi();
+  }
+
   function renderExplorer(data){
     explorerPath = data.path;
     renderBreadcrumb();
     updateCasePath();
     explorerBody.innerHTML = '';
+    selectedFileIds.clear(); // 새 폴더로 이동하면 이전 화면의 선택은 의미 없으므로 초기화
+    lastRenderedFiles = data.files;
 
     // 최상위(고객 폴더) 밑으로 내려온 상태에서만 ".." 상위 폴더 이동 허용
     if (explorerPath.length > 1){
@@ -339,13 +395,32 @@
       const row = document.createElement('div');
       row.className = 'file-row';
       row.draggable = true;
-      row.innerHTML = '<span class="icon">' + iconForFile(f.mimeType) + '</span> '
+      row.dataset.fileId = f.id;
+      row.innerHTML = '<input type="checkbox" class="file-check" title="여러 개 선택해서 한 번에 첨부하려면 체크하세요">'
+        + '<span class="icon">' + iconForFile(f.mimeType) + '</span> '
         + escapeHtml(f.name) + '<span class="meta">' + escapeHtml(f.modifiedDate || '') + '</span>';
+
       row.addEventListener('click', ()=> openEditor(f));
+
+      const checkbox = row.querySelector('.file-check');
+      checkbox.addEventListener('click', (e)=>{
+        e.stopPropagation(); // 체크박스 클릭이 행 클릭(편집기 열기)으로 이어지지 않게
+      });
+      checkbox.addEventListener('change', ()=>{
+        if (checkbox.checked) selectedFileIds.add(f.id);
+        else selectedFileIds.delete(f.id);
+        refreshSelectionUi();
+      });
+
       row.addEventListener('dragstart', (e)=>{
-        e.dataTransfer.setData('application/json', JSON.stringify({ id: f.id, name: f.name, mimeType: f.mimeType }));
+        // 지금 끄는 행이 "선택된 여러 파일" 중 하나면 선택된 파일 전부를, 아니면 이 파일 하나만 실어보냄
+        const filesToDrag = (selectedFileIds.has(f.id) && selectedFileIds.size > 1)
+          ? lastRenderedFiles.filter(x => selectedFileIds.has(x.id)).map(x => ({ id: x.id, name: x.name, mimeType: x.mimeType }))
+          : [{ id: f.id, name: f.name, mimeType: f.mimeType }];
+        e.dataTransfer.setData('application/json', JSON.stringify(filesToDrag));
         e.dataTransfer.effectAllowed = 'copy';
       });
+
       explorerBody.appendChild(row);
     });
 
@@ -355,6 +430,8 @@
       empty.textContent = '이 폴더는 비어 있습니다.';
       explorerBody.appendChild(empty);
     }
+
+    renderSelectionBar(); // 폴더 이동으로 선택이 초기화됐으니 선택바도 숨김 처리
   }
 
   function escapeHtml(s){
@@ -500,7 +577,11 @@
     chatBody.classList.remove('drag-over');
     const raw = e.dataTransfer.getData('application/json');
     if (!raw) return;
-    try{ addAttachment(JSON.parse(raw)); }catch(err){ console.warn('첨부 데이터 파싱 실패', err); }
+    try{
+      const parsed = JSON.parse(raw);
+      const list = Array.isArray(parsed) ? parsed : [parsed]; // 항상 배열로 옴 (단일 파일도 1개짜리 배열)
+      list.forEach(addAttachment);
+    }catch(err){ console.warn('첨부 데이터 파싱 실패', err); }
   });
 
   function appendBubble(role, text){
