@@ -122,9 +122,6 @@
       <select id="customerSelect">
         <option value="">고객 불러오는 중…</option>
       </select>
-      <select id="caseSelect">
-        <option value="">사건 불러오는 중…</option>
-      </select>
     </div>
     <div class="case-path" id="casePath">불러오는 중…</div>
     <div class="spacer"></div>
@@ -226,7 +223,6 @@
   // 상태
   // ============================================================
   const customerSelect = document.getElementById('customerSelect');
-  const caseSelect = document.getElementById('caseSelect');
   const casePathEl = document.getElementById('casePath');
   const breadcrumbEl = document.getElementById('breadcrumb');
   const explorerBody = document.getElementById('explorerBody');
@@ -256,9 +252,7 @@
   }
 
   function updateCasePath(){
-    const c = customerSelect.value;
-    const s = caseSelect.value;
-    casePathEl.textContent = (c && s) ? (c + ' / ' + s) : '고객/사건을 선택하세요';
+    casePathEl.textContent = explorerPath.length ? explorerPath.join(' / ') : '고객을 선택하세요';
   }
 
   function renderBreadcrumb(){
@@ -296,10 +290,11 @@
   function renderExplorer(data){
     explorerPath = data.path;
     renderBreadcrumb();
+    updateCasePath();
     explorerBody.innerHTML = '';
 
-    // 사건(2단계) 아래로 내려온 상태에서만 ".." 상위 폴더 이동 허용
-    if (explorerPath.length > 2){
+    // 최상위(고객 폴더) 밑으로 내려온 상태에서만 ".." 상위 폴더 이동 허용
+    if (explorerPath.length > 1){
       const up = document.createElement('div');
       up.className = 'folder-row';
       up.innerHTML = '<span class="icon">📁</span> .. (상위 폴더)';
@@ -368,37 +363,21 @@
       const data = await listFolder([]);
       const names = data.folders.map(f => f.name);
       setSelectOptions(customerSelect, names, '고객 폴더 없음');
-      if (names.length) await loadCases(names[0]);
-      updateCasePath();
+      if (names.length){
+        customerSelect.value = names[0];
+        await navigateTo([names[0]]);
+      } else {
+        showExplorerStatus('고객 폴더가 없습니다.');
+        updateCasePath();
+      }
     }catch(err){
       setSelectOptions(customerSelect, [], '불러오기 실패');
       showExplorerStatus('고객 목록을 불러오지 못했습니다: ' + err.message, true);
     }
   }
 
-  async function loadCases(customerName){
-    setSelectOptions(caseSelect, [], '사건 불러오는 중…');
-    try{
-      const data = await listFolder([customerName]);
-      const names = data.folders.map(f => f.name);
-      setSelectOptions(caseSelect, names, '사건 폴더 없음');
-      updateCasePath();
-      if (names.length) await navigateTo([customerName, names[0]]);
-      else showExplorerStatus('이 고객에게 등록된 사건 폴더가 없습니다.');
-    }catch(err){
-      setSelectOptions(caseSelect, [], '불러오기 실패');
-      showExplorerStatus('사건 목록을 불러오지 못했습니다: ' + err.message, true);
-    }
-  }
-
   customerSelect.addEventListener('change', ()=>{
-    if (customerSelect.value) loadCases(customerSelect.value);
-  });
-  caseSelect.addEventListener('change', ()=>{
-    if (customerSelect.value && caseSelect.value){
-      updateCasePath();
-      navigateTo([customerSelect.value, caseSelect.value]);
-    }
+    if (customerSelect.value) navigateTo([customerSelect.value]);
   });
 
   loadCustomers();
