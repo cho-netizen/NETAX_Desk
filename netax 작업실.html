@@ -293,6 +293,8 @@
 
   function iconForFile(mimeType){
     if (mimeType && mimeType.indexOf('folder') !== -1) return '📁';
+    if (mimeType && mimeType.indexOf('image/') === 0) return '🖼️';
+    if (mimeType === 'application/pdf') return '📕';
     return '📄';
   }
 
@@ -353,12 +355,26 @@
   // 지금 편집기에 열려 있는 파일 (없으면 null) — 채팅으로 넘길 "현재 화면 상태" 컨텍스트에 사용
   let currentOpenFile = null;
 
+  // 텍스트 계열(우리 렌더러로 열 대상)인지 판별 — 그 외(이미지/PDF/기타)는 구글드라이브 자체 미리보기로 보냄
+  function isTextRenderable(mimeType, name){
+    if (mimeType === 'application/vnd.google-apps.document') return true;
+    if (mimeType && mimeType.indexOf('text/') === 0) return true;
+    if (/\.(md|txt|html?|htm)$/i.test(name || '')) return true;
+    return false;
+  }
+
   function openEditor(file){
     explorerView.style.display = 'none';
     editorView.style.display = 'flex';
     editorFilename.textContent = file.name;
-    editorFrame.src = REPORT_WRITER_URL + '?fileId=' + encodeURIComponent(file.id);
     currentOpenFile = { id: file.id, name: file.name };
+
+    if (isTextRenderable(file.mimeType, file.name)){
+      editorFrame.src = REPORT_WRITER_URL + '?fileId=' + encodeURIComponent(file.id);
+    } else {
+      // 이미지・PDF・기타 파일: 구글드라이브 자체 미리보기 사용 (별도 뷰어를 만들 필요 없음)
+      editorFrame.src = 'https://drive.google.com/file/d/' + encodeURIComponent(file.id) + '/preview';
+    }
   }
 
   document.getElementById('btnBack').addEventListener('click', ()=>{
