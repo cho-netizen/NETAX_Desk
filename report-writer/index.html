@@ -1098,6 +1098,26 @@ function safeSanitizeHtml(raw){
 }
 
 // ---------- NX 작업실 탐색기에서 열었을 때: URL의 fileId로 드라이브 파일 실제 로드 ----------
+// 주의: alert()는 사용자 조작 없이 자동으로 반복 호출되면 브라우저(크롬 등)가 조용히 차단할 수 있어
+// (한 번 뜨고 나면 "이 페이지가 추가 대화상자를 만들지 못하게 차단" 상태가 될 수 있음) 쓰지 않는다.
+// 대신 에러를 편집창 문서 내용 자체에 직접 표시해서 반드시 눈에 보이게 한다.
+function showLoadErrorInEditor(fileId, message){
+  const docId = 'drive-' + fileId;
+  const errorDoc = {
+    id: docId,
+    name: '⚠ 로드 실패',
+    theme: 'memo',
+    format: 'md',
+    md: '# 파일을 불러오지 못했습니다\n\n**오류 내용**\n\n```\n' + message + '\n```\n\n- fileId: `' + fileId + '`\n- GAS_URL이 실제 배포 주소로 맞게 들어있는지\n- Apps Script가 readFile 액션을 포함한 코드로 재배포됐는지\n- 브라우저 개발자도구(F12) → Network 탭에서 실제 요청/응답을 확인해보세요.\n'
+  };
+  const idx = docs.findIndex(d => d.id === docId);
+  if (idx >= 0) docs[idx] = errorDoc; else docs.push(errorDoc);
+  selectedId = docId;
+  persist();
+  refreshDocSelect();
+  loadSelectedIntoEditor();
+}
+
 async function loadFromUrlFileId(){
   const params = new URLSearchParams(window.location.search);
   const fileId = params.get('fileId');
@@ -1112,11 +1132,11 @@ async function loadFromUrlFileId(){
     });
     data = await res.json();
   } catch (err) {
-    alert('드라이브 파일을 불러오는 중 네트워크 오류가 발생했습니다.\n' + (err && err.message ? err.message : err));
+    showLoadErrorInEditor(fileId, '네트워크 오류: ' + (err && err.message ? err.message : err));
     return false;
   }
   if (!data || data.error) {
-    alert('드라이브 파일을 불러오지 못했습니다.\n' + (data && data.error ? data.error : '알 수 없는 오류'));
+    showLoadErrorInEditor(fileId, data && data.error ? data.error : '알 수 없는 오류 (서버 응답이 비어있음)');
     return false;
   }
 
