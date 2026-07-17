@@ -110,8 +110,8 @@
   .folder-row .icon{ color:var(--gold); font-size:15px; }
   .file-row .icon{ color:#8a93a3; font-size:15px; }
   .file-row .meta{ margin-left:auto; font-size:11.5px; color:var(--sub); }
-  .file-row .file-check{ flex-shrink:0; cursor:pointer; accent-color:var(--gold); width:14px; height:14px; }
-  .file-row.is-selected{ background:#fbf4e3; }
+  .file-row .file-check, .folder-row .file-check{ flex-shrink:0; cursor:pointer; accent-color:var(--gold); width:14px; height:14px; }
+  .file-row.is-selected, .folder-row.is-selected{ background:#fbf4e3; }
   .selection-inline{
     display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--navy);
     background:#fbf4e3; border:1px solid var(--gold); border-radius:20px; padding:4px 8px;
@@ -272,8 +272,9 @@
 
   // explorerPath: [고객명, 사건명, ...하위 폴더들] — 항상 최소 2단계(고객/사건) 유지
   let explorerPath = [];
-  // 체크박스로 선택된 파일들 (여러 개 골라서 한 번에 채팅에 첨부하기 위함)
-  let selectedFileIds = new Set();
+  // 체크박스로 선택된 항목들 (파일이든 폴더든) — 여러 개 골라서 한 번에 채팅에 첨부하기 위함
+  // key: id, value: { id, name, type:'file'|'folder', mimeType?, path? }
+  let selectedItems = new Map();
   let lastRenderedFiles = []; // 현재 화면에 그려진 파일 목록 (id로 다시 찾기 위함)
   const selectionInline = document.getElementById('selectionInline');
   const selectionCountText = document.getElementById('selectionCountText');
@@ -334,21 +335,21 @@
   }
 
   function renderSelectionBar(){
-    if (!selectedFileIds.size){
+    if (!selectedItems.size){
       selectionInline.style.display = 'none';
       btnAutoRef.style.display = '';
       return;
     }
-    selectionCountText.textContent = selectedFileIds.size + '개 선택됨';
+    selectionCountText.textContent = selectedItems.size + '개 선택됨';
     selectionInline.style.display = 'flex';
     btnAutoRef.style.display = 'none'; // 자동참조 버튼 자리를 선택 상태로 대체 (레이아웃이 안 밀리게)
   }
 
   // 체크박스 상태와 선택바를 다시 그림 (파일 목록 자체를 새로 그리지 않고 표시만 갱신)
   function refreshSelectionUi(){
-    explorerBody.querySelectorAll('.file-row').forEach(row=>{
-      const id = row.dataset.fileId;
-      const checked = selectedFileIds.has(id);
+    explorerBody.querySelectorAll('.file-row, .folder-row[data-item-id]').forEach(row=>{
+      const id = row.dataset.itemId;
+      const checked = selectedItems.has(id);
       row.classList.toggle('is-selected', checked);
       const cb = row.querySelector('.file-check');
       if (cb) cb.checked = checked;
@@ -356,10 +357,10 @@
     renderSelectionBar();
   }
 
-  // 선택된 파일들을 한 번에 채팅 첨부 목록으로 보냄
+  // 선택된 파일/폴더를 한 번에 채팅 첨부 목록으로 보냄
   function attachSelectedFiles(){
-    lastRenderedFiles.filter(f => selectedFileIds.has(f.id)).forEach(addAttachment);
-    selectedFileIds.clear();
+    selectedItems.forEach(item => addAttachment(item));
+    selectedItems.clear();
     refreshSelectionUi();
   }
 
@@ -368,7 +369,7 @@
     renderBreadcrumb();
     updateCasePath();
     explorerBody.innerHTML = '';
-    selectedFileIds.clear(); // 새 폴더로 이동하면 이전 화면의 선택은 의미 없으므로 초기화
+    selectedItems.clear(); // 새 폴더로 이동하면 이전 화면의 선택은 의미 없으므로 초기화
     lastRenderedFiles = data.files;
 
     // 최상위(고객 폴더) 밑으로 내려온 상태에서만 ".." 상위 폴더 이동 허용
@@ -381,10 +382,32 @@
     }
 
     data.folders.forEach(f=>{
+      const folderPath = explorerPath.concat([f.name]);
       const row = document.createElement('div');
       row.className = 'folder-row';
-      row.innerHTML = '<span class="icon">📁</span> ' + escapeHtml(f.name);
-      row.addEventListener('click', ()=> navigateTo(explorerPath.concat([f.name])));
+      row.draggable = true;
+      row.dataset.itemId = f.id;
+      row.innerHTML = '<input type="checkbox" class="file-check" title="여러 개 선택해서 한 번에 첨부하려면 체크하세요">'
+        + '<span class="icon">📁</span> ' + escapeHtml(f.name);
+
+      row.addEventListener('click', ()=> navigateTo(folderPath));
+
+      const checkbox = row.querySelector('.file-check');
+      checkbox.addEventListener('click', (e)=>{ e.stopPropagation(); }); // 체크박스 클릭이 폴더 진입으로 이어지지 않게
+      checkbox.addEventListener('change', ()=>{
+        if (checkbox.checked) selectedItems.set(f.id, { id: f.id, name: f.name, type: 'folder', path: folderPath });
+        else selectedItems.delete(f.id);
+        refreshSelectionUi();
+      });
+
+      row.addEventListener('dragstart', (e)=>{
+        const itemsToDrag = (selectedItems.has(f.id) && selectedItems.size > 1)
+          ? Array.from(selectedItems.values())
+          : [{ id: f.id, name: f.name, type: 'folder', path: folderPath }];
+        e.dataTransfer.setData('application/json', JSON.stringify(itemsToDrag));
+        e.dataTransfer.effectAllowed = 'copy';
+      });
+
       explorerBody.appendChild(row);
     });
 
@@ -392,7 +415,7 @@
       const row = document.createElement('div');
       row.className = 'file-row';
       row.draggable = true;
-      row.dataset.fileId = f.id;
+      row.dataset.itemId = f.id;
       row.innerHTML = '<input type="checkbox" class="file-check" title="여러 개 선택해서 한 번에 첨부하려면 체크하세요">'
         + '<span class="icon">' + iconForFile(f.mimeType) + '</span> '
         + escapeHtml(f.name) + '<span class="meta">' + escapeHtml(f.modifiedDate || '') + '</span>';
@@ -404,17 +427,17 @@
         e.stopPropagation(); // 체크박스 클릭이 행 클릭(편집기 열기)으로 이어지지 않게
       });
       checkbox.addEventListener('change', ()=>{
-        if (checkbox.checked) selectedFileIds.add(f.id);
-        else selectedFileIds.delete(f.id);
+        if (checkbox.checked) selectedItems.set(f.id, { id: f.id, name: f.name, type: 'file', mimeType: f.mimeType });
+        else selectedItems.delete(f.id);
         refreshSelectionUi();
       });
 
       row.addEventListener('dragstart', (e)=>{
-        // 지금 끄는 행이 "선택된 여러 파일" 중 하나면 선택된 파일 전부를, 아니면 이 파일 하나만 실어보냄
-        const filesToDrag = (selectedFileIds.has(f.id) && selectedFileIds.size > 1)
-          ? lastRenderedFiles.filter(x => selectedFileIds.has(x.id)).map(x => ({ id: x.id, name: x.name, mimeType: x.mimeType }))
-          : [{ id: f.id, name: f.name, mimeType: f.mimeType }];
-        e.dataTransfer.setData('application/json', JSON.stringify(filesToDrag));
+        // 지금 끄는 행이 "선택된 여러 항목" 중 하나면 선택된 항목 전부를, 아니면 이 파일 하나만 실어보냄
+        const itemsToDrag = (selectedItems.has(f.id) && selectedItems.size > 1)
+          ? Array.from(selectedItems.values())
+          : [{ id: f.id, name: f.name, type: 'file', mimeType: f.mimeType }];
+        e.dataTransfer.setData('application/json', JSON.stringify(itemsToDrag));
         e.dataTransfer.effectAllowed = 'copy';
       });
 
@@ -525,7 +548,7 @@
 
   document.getElementById('btnAttachSelected').addEventListener('click', attachSelectedFiles);
   document.getElementById('btnClearSelected').addEventListener('click', ()=>{
-    selectedFileIds.clear();
+    selectedItems.clear();
     refreshSelectionUi();
   });
 
@@ -538,7 +561,7 @@
   const attachBar = document.getElementById('attachBar');
 
   let chatMessages = []; // Claude API 형식: [{role:'user'|'assistant', content:'...'}]
-  let pendingAttachments = []; // [{id,name,mimeType}] — 드래그로 채팅에 끌어다 놓은 파일들 (다음 전송에 무조건 첨부)
+  let pendingAttachments = []; // [{id,name,type:'file'|'folder',mimeType?,path?}] — 채팅에 끌어다 놓거나 첨부한 항목들 (다음 전송에 무조건 반영)
 
   function renderAttachBar(){
     attachBar.innerHTML = '';
@@ -547,22 +570,29 @@
       return;
     }
     attachBar.style.display = 'flex';
-    pendingAttachments.forEach(f=>{
+    pendingAttachments.forEach(item=>{
       const chip = document.createElement('div');
       chip.className = 'attach-chip';
-      chip.innerHTML = '📎 ' + escapeHtml(f.name) + ' <span class="x" title="첨부 취소">✕</span>';
+      const icon = item.type === 'folder' ? '📁' : '📎';
+      chip.innerHTML = icon + ' ' + escapeHtml(item.name) + ' <span class="x" title="첨부 취소">✕</span>';
       chip.querySelector('.x').addEventListener('click', ()=>{
-        pendingAttachments = pendingAttachments.filter(a => a.id !== f.id);
+        pendingAttachments = pendingAttachments.filter(a => a.id !== item.id);
         renderAttachBar();
       });
       attachBar.appendChild(chip);
     });
   }
 
-  function addAttachment(file){
-    if (!file || !file.id) return;
-    if (pendingAttachments.find(a => a.id === file.id)) return; // 중복 방지
-    pendingAttachments.push({ id: file.id, name: file.name, mimeType: file.mimeType });
+  function addAttachment(item){
+    if (!item || !item.id) return;
+    if (pendingAttachments.find(a => a.id === item.id)) return; // 중복 방지
+    pendingAttachments.push({
+      id: item.id,
+      name: item.name,
+      type: item.type === 'folder' ? 'folder' : 'file',
+      mimeType: item.mimeType,
+      path: item.path // 폴더인 경우에만 있음
+    });
     renderAttachBar();
   }
 
@@ -602,7 +632,7 @@
 
     const attachmentsForThisMessage = pendingAttachments.slice();
     const attachNote = attachmentsForThisMessage.length
-      ? ' 📎 ' + attachmentsForThisMessage.map(a => a.name).join(', ')
+      ? ' ' + attachmentsForThisMessage.map(a => (a.type === 'folder' ? '📁' : '📎') + a.name).join(', ')
       : '';
 
     appendBubble('user', text + attachNote);
@@ -624,7 +654,7 @@
           context: {
             currentPath: explorerPath,
             openFile: currentOpenFile,
-            attachedFiles: attachmentsForThisMessage
+            attachedItems: attachmentsForThisMessage
           },
           autoRef: autoRefMode
         })
