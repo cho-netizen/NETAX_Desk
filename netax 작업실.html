@@ -740,7 +740,7 @@
     explorerView.style.display = 'none';
     editorView.style.display = 'flex';
     editorFilename.textContent = file.name;
-    currentOpenFile = { id: file.id, name: file.name };
+    currentOpenFile = { id: file.id, name: file.name, mimeType: file.mimeType };
 
     if (isTextRenderable(file.mimeType, file.name)){
       isReportWriterOpen = true;
@@ -788,6 +788,28 @@
   function applyEditorContent(newContent){
     if (!isReportWriterOpen || !editorFrame.contentWindow) return;
     editorFrame.contentWindow.postMessage({ type: 'nx-set-content', content: newContent }, '*');
+  }
+
+  // report-writer가 아니라 구글드라이브 자체 미리보기(이미지·PDF)로 열려 있는 파일은
+  // "실시간 타이핑 내용" 개념이 없으므로, 대신 파일 자체를 이미지/문서 블록으로 가져와 메시지에 실어보낸다.
+  async function getOpenFileMediaBlock(){
+    if (!currentOpenFile || isReportWriterOpen) return null;
+    const mt = currentOpenFile.mimeType || '';
+    const isImage = mt.indexOf('image/') === 0;
+    const isPdf = mt === 'application/pdf';
+    if (!isImage && !isPdf) return null; // 그 외 형식은 아직 미지원 (필요시 확장 가능)
+
+    try{
+      const data = await callGas('readFile', { fileId: currentOpenFile.id });
+      if (data.error || !data.base64) return null;
+      return {
+        type: isImage ? 'image' : 'document',
+        source: { type: 'base64', media_type: data.mimeType || mt, data: data.base64 }
+      };
+    }catch(err){
+      console.warn('열려있는 파일을 첨부하지 못했습니다', err);
+      return null;
+    }
   }
 
   // ============================================================
@@ -1070,7 +1092,6 @@
       : '';
 
     appendBubble('user', text + attachNote);
-    chatMessages.push({ role: 'user', content: text });
     chatInputEl.value = '';
     chatInputEl.disabled = true;
     btnChatSend.disabled = true;
@@ -1081,9 +1102,17 @@
 
     // report-writer가 열려있으면 "지금 타이핑 중인(저장 전) 내용"까지 실시간으로 받아옴
     const liveContent = await getEditorLiveContent();
+    // report-writer가 아니라 이미지·PDF 뷰어로 열려 있으면, 그 파일 자체를 메시지에 실어보낼 블록을 준비
+    const openFileMediaBlock = await getOpenFileMediaBlock();
+
     const openFileCtx = currentOpenFile
       ? Object.assign({}, currentOpenFile, (liveContent !== null ? { liveContent } : {}))
       : null;
+
+    const userContent = openFileMediaBlock
+      ? [{ type: 'text', text: text }, openFileMediaBlock]
+      : text;
+    chatMessages.push({ role: 'user', content: userContent });
 
     try{
       const res = await fetch(GAS_URL, {
