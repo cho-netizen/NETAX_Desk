@@ -1633,6 +1633,7 @@ function linkifyStatutes(container) {
       const span = document.createElement('span');
       span.className = 'statute-link';
       span.textContent = matchedText;
+      span.dataset.statuteKey = matchedText; // cloneNode()는 addEventListener 리스너를 복제하지 않으므로, 완성본 내보내기 시 이 값으로 클릭 기능을 재구성한다
       span.addEventListener('click', () => showStatutePopup(matchedText));
       frag.appendChild(span);
       lastIndex = m.index + m[0].length;
@@ -2296,13 +2297,70 @@ function escapeHtml(s){
 function buildStandaloneHtml(){
   const d = getSelected();
   const title = d ? d.name : '문서';
-  const clone = document.getElementById('renderOut').cloneNode(true);
+  const liveRoot = document.getElementById('renderOut');
+
+  // Chart.js는 <canvas>에 픽셀을 그릴 뿐, 그 결과물은 DOM/outerHTML에 포함되지 않는다.
+  // cloneNode(true)로 캔버스를 복제해도 내용은 항상 빈 캔버스가 되므로(2026.07 확인된 버그),
+  // 완성본을 "그대로 표시만 하면 되는" 정적 문서로 만들려면 캔버스를 지금 그려진 화면 그대로
+  // <img>로 구워서(toDataURL) 대체해야 한다. 원본 캔버스 순서대로 매칭한다.
+  const liveCanvases = liveRoot.querySelectorAll('canvas');
+  const clone = liveRoot.cloneNode(true);
   clone.style.zoom = ''; // 화면에서 확대/축소한 배율이 내보낸 파일에 섞여 들어가지 않도록 제거
   clone.removeAttribute('id'); // #renderOut 전용 폭제한 해제 규칙이 내보낸 파일에는 적용되지 않도록(실제 인쇄/고객화면 폭 유지)
+  const cloneCanvases = clone.querySelectorAll('canvas');
+  liveCanvases.forEach((liveCanvas, i) => {
+    const cloneCanvas = cloneCanvases[i];
+    if (!cloneCanvas) return;
+    try {
+      const img = document.createElement('img');
+      img.src = liveCanvas.toDataURL('image/png');
+      img.style.cssText = cloneCanvas.style.cssText || '';
+      img.style.maxWidth = '100%';
+      cloneCanvas.replaceWith(img);
+    } catch (err) {
+      // toDataURL 실패(예: 캔버스가 아직 그려지기 전) 시에도 다운로드 자체는 막지 않고 넘어감
+      console.error('[차트 이미지 변환 실패]', err);
+    }
+  });
+
   const articleHtml = clone.outerHTML;
   const styleText = document.querySelector('style').textContent;
+  // 조문 링크(.statute-link) 클릭 팝업: 원본 클릭 리스너와 모달 element는 #renderOut 밖에 있어
+  // 위 clone에 포함되지 않는다. 완성본이 report-writer 없이 단독으로도 동작하도록
+  // 모달 마크업과 필요한 데이터·함수를 함께 구워 넣는다.
+  const statuteModalHtml = document.getElementById('statuteModal').outerHTML;
+  const statuteScript = '<script>\n'
+    + 'const STATUTE_INFO = ' + JSON.stringify(STATUTE_INFO) + ';\n'
+    + 'const STATUTE_LAW_FULLNAME = ' + JSON.stringify(STATUTE_LAW_FULLNAME) + ';\n'
+    + buildArticlePath.toString() + '\n'
+    + 'function showStatutePopup(key){\n'
+    + '  const info = STATUTE_INFO[key];\n'
+    + '  if (!info) return;\n'
+    + '  document.getElementById("statuteModalTitle").textContent = info.title;\n'
+    + '  document.getElementById("statuteModalBody").textContent = info.summary;\n'
+    + '  const lawShort = key.split(" ")[0];\n'
+    + '  const lawFullName = STATUTE_LAW_FULLNAME[lawShort] || lawShort;\n'
+    + '  const articlePath = buildArticlePath(key);\n'
+    + '  const linkEl = document.getElementById("statuteModalLink");\n'
+    + '  linkEl.href = articlePath\n'
+    + '    ? "https://www.law.go.kr/법령/" + encodeURIComponent(lawFullName) + "/" + encodeURIComponent(articlePath)\n'
+    + '    : "https://www.law.go.kr/LSW/lsSc.do?section=&menuId=1&subMenuId=15&tabMenuId=81&query=" + encodeURIComponent(lawFullName);\n'
+    + '  document.getElementById("statuteModal").style.display = "flex";\n'
+    + '}\n'
+    + 'function closeStatuteModal(){ document.getElementById("statuteModal").style.display = "none"; }\n'
+    + 'document.querySelectorAll(".statute-link").forEach(function(span){\n'
+    + '  const key = span.dataset.statuteKey;\n'
+    + '  if (key) span.addEventListener("click", function(){ showStatutePopup(key); });\n'
+    + '});\n'
+    + 'document.addEventListener("keydown", function(e){ if (e.key === "Escape") closeStatuteModal(); });\n'
+    + '</' + 'script>';
+  // 완성본은 marked/mermaid/KaTeX/Chart.js/Prism 등 어떤 렌더링 스크립트도 없이 열리므로,
+  // 이미 렌더링된 결과가 그대로 보이는 데 필요한 CSS(KaTeX 수식 레이아웃, Prism 코드 하이라이팅 색상)만
+  // 함께 담아 보낸다(둘 다 이전에는 head에 빠져 있어 완성본에서 수식·코드블록이 깨지는 버그가 있었음).
   const fonts = '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
-    + '<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">';
+    + '<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">\n'
+    + '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">\n'
+    + '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">';
   return '<!DOCTYPE html>\n<html lang="ko">\n<head>\n<meta charset="UTF-8">\n'
     + '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
     + '<title>' + escapeHtml(title) + '</title>\n' + fonts + '\n'
@@ -2311,7 +2369,8 @@ function buildStandaloneHtml(){
     + '\nhtml,body{height:auto !important;}'
     + '\nbody{display:block !important; overflow:visible !important;}'
     + '\n#standaloneWrap{overflow:auto; background:#e9eaee; padding:24px; min-height:100vh;}\n</style>\n'
-    + '</head>\n<body>\n<div id="standaloneWrap">\n' + articleHtml + '\n</div>\n</body>\n</html>';
+    + '</head>\n<body>\n<div id="standaloneWrap">\n' + articleHtml + '\n</div>\n'
+    + statuteModalHtml + '\n' + statuteScript + '\n</body>\n</html>';
 }
 
 function downloadAsDoc(){
