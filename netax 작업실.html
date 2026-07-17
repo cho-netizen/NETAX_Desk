@@ -168,6 +168,12 @@
   .msg{ max-width:82%; padding:10px 13px; border-radius:10px; font-size:13.5px; line-height:1.55; }
   .msg.ai{ background:#f0f2f6; color:var(--ink); align-self:flex-start; border-top-left-radius:2px; }
   .msg.me{ background:var(--navy); color:#fff; align-self:flex-end; border-top-right-radius:2px; }
+  .apply-edit-btn{
+    margin-top:8px; display:block; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer;
+    border:none; border-radius:6px; padding:7px 12px; background:var(--gold); color:var(--navy-deep);
+  }
+  .apply-edit-btn:hover{ background:var(--gold-light); }
+  .apply-edit-btn:disabled{ background:#cfd4dc; color:var(--sub); cursor:default; }
   .chat-input{ display:flex; gap:8px; padding:12px; border-top:1px solid var(--line); flex-shrink:0; }
   .chat-input input{
     flex:1; border:1px solid var(--line); border-radius:8px; padding:9px 12px;
@@ -671,6 +677,8 @@
 
   // 지금 편집기에 열려 있는 파일 (없으면 null) — 채팅으로 넘길 "현재 화면 상태" 컨텍스트에 사용
   let currentOpenFile = null;
+  // report-writer(우리 렌더러)로 열려 있는지 — 이때만 postMessage로 실시간 내용 조회/적용 가능
+  let isReportWriterOpen = false;
 
   // 텍스트 계열(우리 렌더러로 열 대상)인지 판별 — 그 외(이미지/PDF/기타)는 구글드라이브 자체 미리보기로 보냄
   function isTextRenderable(mimeType, name){
@@ -687,8 +695,10 @@
     currentOpenFile = { id: file.id, name: file.name };
 
     if (isTextRenderable(file.mimeType, file.name)){
+      isReportWriterOpen = true;
       editorFrame.src = REPORT_WRITER_URL + '?fileId=' + encodeURIComponent(file.id);
     } else {
+      isReportWriterOpen = false;
       // 이미지・PDF・기타 파일: 구글드라이브 자체 미리보기 사용 (별도 뷰어를 만들 필요 없음)
       editorFrame.src = 'https://drive.google.com/file/d/' + encodeURIComponent(file.id) + '/preview';
     }
@@ -699,7 +709,38 @@
     editorView.style.display = 'none';
     explorerView.style.display = 'block';
     currentOpenFile = null;
+    isReportWriterOpen = false;
   });
+
+  // ---- report-writer(iframe)와의 실시간 통신 (postMessage) ----
+  let msgReqCounter = 0;
+  const pendingContentRequests = {};
+
+  window.addEventListener('message', (event)=>{
+    const msg = event.data;
+    if (!msg || typeof msg !== 'object') return;
+    if (msg.type === 'nx-content-response' && pendingContentRequests[msg.requestId]){
+      pendingContentRequests[msg.requestId](msg.content);
+      delete pendingContentRequests[msg.requestId];
+    }
+  });
+
+  // 지금 편집기(report-writer)에 실제로 타이핑되어 있는(저장 전 포함) 내용을 물어봄
+  function getEditorLiveContent(){
+    return new Promise((resolve)=>{
+      if (!isReportWriterOpen || !editorFrame.contentWindow){ resolve(null); return; }
+      const requestId = 'req' + (++msgReqCounter);
+      const timer = setTimeout(()=>{ delete pendingContentRequests[requestId]; resolve(null); }, 1500);
+      pendingContentRequests[requestId] = (content)=>{ clearTimeout(timer); resolve(content); };
+      editorFrame.contentWindow.postMessage({ type: 'nx-get-content', requestId }, '*');
+    });
+  }
+
+  // AI가 제안한 새 문서 내용을 편집기에 실제로 적용
+  function applyEditorContent(newContent){
+    if (!isReportWriterOpen || !editorFrame.contentWindow) return;
+    editorFrame.contentWindow.postMessage({ type: 'nx-set-content', content: newContent }, '*');
+  }
 
   // ============================================================
   // 고객/사건 선택 로딩
@@ -939,6 +980,39 @@
     return div;
   }
 
+  // AI 응답 안에 <<<EDIT_DOCUMENT>>>...<<<END_EDIT_DOCUMENT>>> 구간이 있으면
+  // "편집기에 적용하기" 버튼을 붙여서 렌더링 (없으면 그냥 평범한 텍스트)
+  const EDIT_START = '<<<EDIT_DOCUMENT>>>';
+  const EDIT_END = '<<<END_EDIT_DOCUMENT>>>';
+
+  function renderAssistantReply(bubbleEl, replyText){
+    const startIdx = replyText.indexOf(EDIT_START);
+    const endIdx = replyText.indexOf(EDIT_END);
+    bubbleEl.innerHTML = '';
+
+    if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx && isReportWriterOpen){
+      const before = replyText.slice(0, startIdx).trim();
+      const newContent = replyText.slice(startIdx + EDIT_START.length, endIdx).trim();
+      const after = replyText.slice(endIdx + EDIT_END.length).trim();
+
+      const textPart = document.createElement('div');
+      textPart.textContent = [before, after].filter(Boolean).join('\n\n') || '편집기에 열려 있는 문서에 대한 수정안을 준비했습니다.';
+      bubbleEl.appendChild(textPart);
+
+      const applyBtn = document.createElement('button');
+      applyBtn.className = 'apply-edit-btn';
+      applyBtn.textContent = '📝 편집기에 적용하기';
+      applyBtn.addEventListener('click', ()=>{
+        applyEditorContent(newContent);
+        applyBtn.textContent = '✓ 적용됨';
+        applyBtn.disabled = true;
+      });
+      bubbleEl.appendChild(applyBtn);
+    } else {
+      bubbleEl.textContent = replyText;
+    }
+  }
+
   async function sendChatMessage(){
     const text = chatInputEl.value.trim();
     if (!text) return;
@@ -958,6 +1032,12 @@
 
     const thinkingBubble = appendBubble('assistant', '생각 중…');
 
+    // report-writer가 열려있으면 "지금 타이핑 중인(저장 전) 내용"까지 실시간으로 받아옴
+    const liveContent = await getEditorLiveContent();
+    const openFileCtx = currentOpenFile
+      ? Object.assign({}, currentOpenFile, (liveContent !== null ? { liveContent } : {}))
+      : null;
+
     try{
       const res = await fetch(GAS_URL, {
         method: 'POST',
@@ -966,7 +1046,7 @@
           messages: chatMessages,
           context: {
             currentPath: explorerPath,
-            openFile: currentOpenFile,
+            openFile: openFileCtx,
             attachedItems: attachmentsForThisMessage
           },
           autoRef: autoRefMode
@@ -976,7 +1056,7 @@
       if (data.error){
         thinkingBubble.textContent = '오류: ' + data.error;
       } else {
-        thinkingBubble.textContent = data.reply || '(빈 응답)';
+        renderAssistantReply(thinkingBubble, data.reply || '(빈 응답)');
         chatMessages.push({ role: 'assistant', content: data.reply || '' });
       }
     }catch(err){

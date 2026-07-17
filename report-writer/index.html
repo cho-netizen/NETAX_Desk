@@ -1118,6 +1118,37 @@ function showLoadErrorInEditor(fileId, message){
   loadSelectedIntoEditor();
 }
 
+// ---------- NX 작업실(부모 창)과의 실시간 연동 ----------
+// 부모가 "지금 편집창에 있는 내용 줘"라고 물으면 답하고,
+// 부모가 "이 내용으로 바꿔줘"라고 보내면 편집창을 실제로 갱신한다 (저장 전 상태도 반영).
+window.addEventListener('message', function(event){
+  const msg = event.data;
+  if (!msg || typeof msg !== 'object') return;
+
+  if (msg.type === 'nx-get-content'){
+    const mdInputEl = document.getElementById('mdInput');
+    window.parent.postMessage({
+      type: 'nx-content-response',
+      requestId: msg.requestId,
+      content: mdInputEl ? mdInputEl.value : ''
+    }, '*');
+  }
+
+  if (msg.type === 'nx-set-content'){
+    const mdInputEl = document.getElementById('mdInput');
+    if (mdInputEl){
+      mdInputEl.value = msg.content || '';
+      const d = docs.find(function(x){ return x.id === selectedId; });
+      if (d){
+        d.md = mdInputEl.value;
+        persist();
+      }
+      render();
+    }
+    window.parent.postMessage({ type: 'nx-set-content-ack', requestId: msg.requestId }, '*');
+  }
+});
+
 async function loadFromUrlFileId(){
   const params = new URLSearchParams(window.location.search);
   const fileId = params.get('fileId');
