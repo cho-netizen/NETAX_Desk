@@ -162,6 +162,16 @@ async function fetchCSV(url) {
 function escAttr(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');}
 function escText(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
+// 폴더명 비교용 정규화: 일반 공백·전각 공백(U+3000)·NBSP(U+00A0)·제로폭 문자 등을
+// 전부 제거한 뒤 비교해서, 구글시트 입력 과정에서 섞이기 쉬운 보이지 않는 공백 차이로
+// 폴더-링크 매칭이 어긋나는 것을 방지함
+function normalizeFolderKey(s) {
+  return String(s || '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')   // 제로폭 문자 제거
+    .replace(/[\s\u00A0\u3000]+/g, '')        // 일반 공백·NBSP·전각공백 전부 제거
+    .toLowerCase();
+}
+
 async function loadAndRender() {
   const foldersEl = document.getElementById('folders');
   const statusEl = document.getElementById('statusMsg');
@@ -183,13 +193,18 @@ async function loadAndRender() {
     folders.sort((a, b) => a.order - b.order);
 
     const byName = {};
-    folders.forEach(f => byName[f.name] = f);
+    folders.forEach(f => byName[normalizeFolderKey(f.name)] = f);
     linkRows.forEach(l => {
-      const f = byName[l['폴더명']];
+      const f = byName[normalizeFolderKey(l['폴더명'])];
       if (f && l['제목'] && l['URL']) f.links.push({ title: l['제목'], href: l['URL'], mode: l['연결방식'] || '' });
     });
 
     if (!folders.length) throw new Error('폴더 데이터가 비어 있습니다');
+
+    const emptyFolders = folders.filter(f => f.links.length === 0).map(f => f.name);
+    if (emptyFolders.length) {
+      console.warn('링크가 0개로 인식된 폴더(시트의 폴더명 표기를 다시 확인해주세요):', emptyFolders);
+    }
 
     foldersEl.innerHTML = folders.map(f => {
       // 링크가 1개뿐인 폴더는 펼쳐볼 하위 목록이 없으므로, 아코디언 대신
