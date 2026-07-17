@@ -61,6 +61,12 @@
     flex-shrink:0; background:#f4f5f8;
   }
   .panel-head .dot{ width:6px; height:6px; border-radius:50%; background:var(--gold); }
+  .autoref-toggle{
+    font-family:inherit; font-size:11.5px; font-weight:700; cursor:pointer;
+    border:1px solid var(--line); border-radius:20px; padding:4px 10px;
+    background:#f0f2f6; color:var(--sub);
+  }
+  .autoref-toggle.is-on{ background:var(--navy); color:#fff; border-color:var(--navy); }
 
   /* ===== AI 채팅 패널 ===== */
   .chat-body{ flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:12px; }
@@ -134,15 +140,17 @@
 
   <div class="workspace" id="workspace">
     <div class="panel chat">
-      <div class="panel-head"><span class="dot"></span> AI 채팅</div>
+      <div class="panel-head">
+        <span class="dot"></span> AI 채팅
+        <div class="spacer"></div>
+        <button type="button" id="btnAutoRef" class="autoref-toggle" title="자동참조 모드: AI가 알아서 폴더/파일을 읽을지, 명시적으로 요청했을 때만 읽을지">자동참조: OFF</button>
+      </div>
       <div class="chat-body" id="chatBody">
-        <div class="msg ai">고광민 원장님 법인전환 건, 지금 이어서 진행할까요? 04_자료확보 폴더에 아직 재무제표가 안 올라와 있습니다.</div>
-        <div class="msg me">응, 처리방향분석 문서부터 다시 열어줘</div>
-        <div class="msg ai">오른쪽에서 03_처리방향분석 폴더를 열었습니다. 문서를 클릭하면 바로 편집기로 전환됩니다.</div>
+        <div class="msg ai">안녕하세요. 우측 탐색기에서 보고 계신 위치나 열어두신 파일에 대해 물어보시면 답변해드립니다. (자동참조 토글로 "알아서 읽기" 여부를 바꿀 수 있어요)</div>
       </div>
       <div class="chat-input">
-        <input type="text" placeholder="메시지를 입력하세요…" aria-label="메시지 입력">
-        <button type="button">보내기</button>
+        <input type="text" id="chatInputEl" placeholder="메시지를 입력하세요…" aria-label="메시지 입력">
+        <button type="button" id="btnChatSend">보내기</button>
       </div>
     </div>
 
@@ -342,17 +350,22 @@
     }
   }
 
+  // 지금 편집기에 열려 있는 파일 (없으면 null) — 채팅으로 넘길 "현재 화면 상태" 컨텍스트에 사용
+  let currentOpenFile = null;
+
   function openEditor(file){
     explorerView.style.display = 'none';
     editorView.style.display = 'flex';
     editorFilename.textContent = file.name;
     editorFrame.src = REPORT_WRITER_URL + '?fileId=' + encodeURIComponent(file.id);
+    currentOpenFile = { id: file.id, name: file.name };
   }
 
   document.getElementById('btnBack').addEventListener('click', ()=>{
     editorFrame.src = 'about:blank';
     editorView.style.display = 'none';
     explorerView.style.display = 'block';
+    currentOpenFile = null;
   });
 
   // ============================================================
@@ -382,6 +395,91 @@
   });
 
   loadCustomers();
+
+  // ============================================================
+  // 자동참조 토글 (ON: AI가 알아서 판단해 폴더/파일을 읽음 / OFF: 명시적으로 요청했을 때만)
+  // ============================================================
+  const AUTOREF_KEY = 'nx_autoref_mode';
+  const btnAutoRef = document.getElementById('btnAutoRef');
+  let autoRefMode = localStorage.getItem(AUTOREF_KEY) === '1';
+
+  function renderAutoRefButton(){
+    btnAutoRef.textContent = '자동참조: ' + (autoRefMode ? 'ON' : 'OFF');
+    btnAutoRef.classList.toggle('is-on', autoRefMode);
+  }
+  btnAutoRef.addEventListener('click', ()=>{
+    autoRefMode = !autoRefMode;
+    localStorage.setItem(AUTOREF_KEY, autoRefMode ? '1' : '0');
+    renderAutoRefButton();
+  });
+  renderAutoRefButton();
+
+  // ============================================================
+  // AI 채팅 — 실제 GAS 연결
+  // ============================================================
+  const chatBody = document.getElementById('chatBody');
+  const chatInputEl = document.getElementById('chatInputEl');
+  const btnChatSend = document.getElementById('btnChatSend');
+
+  let chatMessages = []; // Claude API 형식: [{role:'user'|'assistant', content:'...'}]
+
+  function appendBubble(role, text){
+    const div = document.createElement('div');
+    div.className = 'msg ' + (role === 'user' ? 'me' : 'ai');
+    div.textContent = text;
+    chatBody.appendChild(div);
+    chatBody.scrollTop = chatBody.scrollHeight;
+    return div;
+  }
+
+  async function sendChatMessage(){
+    const text = chatInputEl.value.trim();
+    if (!text) return;
+
+    appendBubble('user', text);
+    chatMessages.push({ role: 'user', content: text });
+    chatInputEl.value = '';
+    chatInputEl.disabled = true;
+    btnChatSend.disabled = true;
+
+    const thinkingBubble = appendBubble('assistant', '생각 중…');
+
+    try{
+      const res = await fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          messages: chatMessages,
+          context: {
+            currentPath: explorerPath,
+            openFile: currentOpenFile
+          },
+          autoRef: autoRefMode
+        })
+      });
+      const data = await res.json();
+      if (data.error){
+        thinkingBubble.textContent = '오류: ' + data.error;
+      } else {
+        thinkingBubble.textContent = data.reply || '(빈 응답)';
+        chatMessages.push({ role: 'assistant', content: data.reply || '' });
+      }
+    }catch(err){
+      thinkingBubble.textContent = '네트워크 오류: ' + (err && err.message ? err.message : err);
+    }finally{
+      chatInputEl.disabled = false;
+      btnChatSend.disabled = false;
+      chatInputEl.focus();
+    }
+  }
+
+  btnChatSend.addEventListener('click', sendChatMessage);
+  chatInputEl.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter' && !e.shiftKey){
+      e.preventDefault();
+      sendChatMessage();
+    }
+  });
 </script>
 </body>
 </html>
