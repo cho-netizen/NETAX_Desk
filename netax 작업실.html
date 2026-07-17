@@ -44,6 +44,53 @@
   .layout-toggle button.active{ background:var(--gold); color:var(--navy-deep); }
   .layout-toggle button:hover:not(.active){ color:#fff; }
 
+  .settings-btn{
+    font-family:inherit; font-size:12px; font-weight:600; cursor:pointer;
+    border:1px solid rgba(255,255,255,0.25); border-radius:8px; padding:6px 10px;
+    background:rgba(255,255,255,0.08); color:#e8e8ec;
+  }
+  .settings-btn:hover{ background:rgba(255,255,255,0.16); }
+
+  /* ===== AI 설정 모달 ===== */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(13,27,61,0.55);
+    display:flex; align-items:center; justify-content:center; z-index:100;
+  }
+  .modal-panel{
+    width:min(420px, 92vw); max-height:86vh; overflow-y:auto;
+    background:#fff; border-radius:10px; box-shadow:0 12px 32px rgba(0,0,0,0.25);
+  }
+  .modal-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 18px; background:var(--navy); color:#fff;
+    font-family:'Noto Serif KR',serif; font-weight:700; font-size:15px;
+    border-radius:10px 10px 0 0;
+  }
+  .modal-close{ cursor:pointer; color:rgba(255,255,255,0.7); font-size:14px; }
+  .modal-close:hover{ color:#fff; }
+  .modal-body{ padding:16px 18px; display:flex; flex-direction:column; gap:4px; }
+  .modal-label{ font-size:12px; font-weight:700; color:var(--navy); margin-top:10px; margin-bottom:2px; }
+  .modal-body select, .modal-body input[type="number"], .modal-body textarea{
+    font-family:inherit; font-size:13px; padding:7px 9px; border:1px solid var(--line); border-radius:6px;
+    color:var(--ink); width:100%;
+  }
+  .modal-body textarea{ resize:vertical; }
+  .modal-checkrow{ display:flex; flex-direction:column; gap:6px; margin-top:8px; font-size:12.5px; color:var(--ink); }
+  .modal-checkrow label{ display:flex; align-items:center; gap:6px; cursor:pointer; }
+  .modal-foot{
+    display:flex; justify-content:flex-end; gap:8px; padding:12px 18px;
+    border-top:1px solid var(--line);
+  }
+  .ghost-btn{
+    font-family:inherit; font-size:12.5px; font-weight:600; cursor:pointer; border-radius:6px; padding:7px 14px;
+    border:1px solid var(--line); background:none; color:var(--sub);
+  }
+  .save-btn{
+    font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer; border-radius:6px; padding:7px 14px;
+    border:none; background:var(--navy); color:#fff;
+  }
+  .save-btn:hover{ background:var(--navy-deep); }
+
   /* ===== 작업 영역 ===== */
   .workspace{ display:flex; flex:1; min-height:0; }
   .workspace.layout-row{ flex-direction:row; }
@@ -159,6 +206,64 @@
     <div class="layout-toggle" role="group" aria-label="레이아웃 전환">
       <button id="btnRow" title="좌우 배치" aria-label="좌우 배치">⬓</button>
       <button id="btnCol" title="상하 배치" aria-label="상하 배치">⬒</button>
+    </div>
+    <button id="btnOpenSettings" class="settings-btn" title="AI 설정">⚙ AI 설정</button>
+  </div>
+
+  <div class="modal-overlay" id="settingsOverlay" style="display:none;">
+    <div class="modal-panel">
+      <div class="modal-head">
+        <span>AI 설정</span>
+        <span class="modal-close" id="btnCloseSettings" title="닫기">✕</span>
+      </div>
+      <div class="modal-body">
+
+        <label class="modal-label">모델</label>
+        <select id="settingsModel">
+          <option value="claude-sonnet-5">Claude Sonnet 5</option>
+          <option value="claude-opus-4-8">Claude Opus 4.8</option>
+          <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
+          <option value="claude-fable-5">Claude Fable 5</option>
+          <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro (Preview)</option>
+          <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+          <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash-Lite</option>
+        </select>
+
+        <label class="modal-label">사고 강도</label>
+        <select id="settingsEffort">
+          <option value="low">낮음 (빠름)</option>
+          <option value="medium" selected>보통</option>
+          <option value="high">높음 (신중하게, 느림)</option>
+        </select>
+
+        <label class="modal-label">온도 (temperature, 비워두면 모델 기본값)</label>
+        <input type="number" id="settingsTemperature" min="0" max="1" step="0.1" placeholder="예: 0.7">
+
+        <div class="modal-checkrow">
+          <label><input type="checkbox" id="settingsWebSearch"> 웹서치 사용</label>
+          <label><input type="checkbox" id="settingsWebFetch"> 웹페이지 가져오기 사용</label>
+          <label><input type="checkbox" id="settingsCodeExec"> 코드실행 사용</label>
+        </div>
+
+        <div class="modal-checkrow">
+          <label><input type="checkbox" id="settingsAdvisor"> 어드바이저(자문 AI) 사용</label>
+        </div>
+        <div id="advisorModelRow" style="display:none;">
+          <label class="modal-label">어드바이저 모델</label>
+          <select id="settingsAdvisorModel">
+            <option value="claude-opus-4-8">Claude Opus 4.8</option>
+            <option value="claude-sonnet-5">Claude Sonnet 5</option>
+          </select>
+        </div>
+
+        <label class="modal-label">시스템 프롬프트 (비워두면 기본 프롬프트 사용)</label>
+        <textarea id="settingsSystemPrompt" rows="3" placeholder="예: 너는 이음세무컨설팅의 개인 업무 보조 AI다..."></textarea>
+
+      </div>
+      <div class="modal-foot">
+        <button id="btnResetSettings" class="ghost-btn">기본값으로</button>
+        <button id="btnSaveSettings" class="save-btn">저장</button>
+      </div>
     </div>
   </div>
 
@@ -553,6 +658,112 @@
   });
 
   // ============================================================
+  // AI 설정 (모델/강도/도구 등 — 예전 NX Assistant 화면에 있던 설정들을 여기로 이전)
+  // ============================================================
+  const AI_SETTINGS_KEY = 'nx_ai_settings';
+  const DEFAULT_AI_SETTINGS = {
+    model: 'claude-sonnet-5',
+    effort: 'medium',
+    temperature: null,          // null이면 요청에 아예 안 실어서 모델 기본값 사용
+    enableWebSearch: false,
+    enableWebFetch: false,
+    enableCodeExecution: false,
+    enableAdvisor: false,
+    advisorModel: 'claude-opus-4-8',
+    systemPrompt: ''            // 비어있으면 GAS의 DEFAULT_SYSTEM_PROMPT 사용
+  };
+
+  function loadAiSettings(){
+    try{
+      const raw = localStorage.getItem(AI_SETTINGS_KEY);
+      if (raw) return Object.assign({}, DEFAULT_AI_SETTINGS, JSON.parse(raw));
+    }catch(err){ console.warn('AI 설정 로드 실패, 기본값 사용', err); }
+    return Object.assign({}, DEFAULT_AI_SETTINGS);
+  }
+
+  let aiSettings = loadAiSettings();
+
+  const settingsOverlay = document.getElementById('settingsOverlay');
+  const settingsModel = document.getElementById('settingsModel');
+  const settingsEffort = document.getElementById('settingsEffort');
+  const settingsTemperature = document.getElementById('settingsTemperature');
+  const settingsWebSearch = document.getElementById('settingsWebSearch');
+  const settingsWebFetch = document.getElementById('settingsWebFetch');
+  const settingsCodeExec = document.getElementById('settingsCodeExec');
+  const settingsAdvisor = document.getElementById('settingsAdvisor');
+  const advisorModelRow = document.getElementById('advisorModelRow');
+  const settingsAdvisorModel = document.getElementById('settingsAdvisorModel');
+  const settingsSystemPrompt = document.getElementById('settingsSystemPrompt');
+
+  function populateSettingsForm(s){
+    settingsModel.value = s.model;
+    settingsEffort.value = s.effort;
+    settingsTemperature.value = (s.temperature === null || s.temperature === undefined) ? '' : s.temperature;
+    settingsWebSearch.checked = !!s.enableWebSearch;
+    settingsWebFetch.checked = !!s.enableWebFetch;
+    settingsCodeExec.checked = !!s.enableCodeExecution;
+    settingsAdvisor.checked = !!s.enableAdvisor;
+    settingsAdvisorModel.value = s.advisorModel;
+    advisorModelRow.style.display = s.enableAdvisor ? 'block' : 'none';
+    settingsSystemPrompt.value = s.systemPrompt || '';
+  }
+
+  function readSettingsForm(){
+    const tempRaw = settingsTemperature.value.trim();
+    return {
+      model: settingsModel.value,
+      effort: settingsEffort.value,
+      temperature: tempRaw === '' ? null : Math.max(0, Math.min(1, Number(tempRaw))),
+      enableWebSearch: settingsWebSearch.checked,
+      enableWebFetch: settingsWebFetch.checked,
+      enableCodeExecution: settingsCodeExec.checked,
+      enableAdvisor: settingsAdvisor.checked,
+      advisorModel: settingsAdvisorModel.value,
+      systemPrompt: settingsSystemPrompt.value.trim()
+    };
+  }
+
+  function openSettingsModal(){
+    populateSettingsForm(aiSettings);
+    settingsOverlay.style.display = 'flex';
+  }
+  function closeSettingsModal(){
+    settingsOverlay.style.display = 'none';
+  }
+
+  document.getElementById('btnOpenSettings').addEventListener('click', openSettingsModal);
+  document.getElementById('btnCloseSettings').addEventListener('click', closeSettingsModal);
+  settingsOverlay.addEventListener('click', (e)=>{
+    if (e.target === settingsOverlay) closeSettingsModal(); // 바깥(어두운 영역) 클릭 시 닫기
+  });
+  settingsAdvisor.addEventListener('change', ()=>{
+    advisorModelRow.style.display = settingsAdvisor.checked ? 'block' : 'none';
+  });
+  document.getElementById('btnResetSettings').addEventListener('click', ()=>{
+    populateSettingsForm(DEFAULT_AI_SETTINGS);
+  });
+  document.getElementById('btnSaveSettings').addEventListener('click', ()=>{
+    aiSettings = readSettingsForm();
+    localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(aiSettings));
+    closeSettingsModal();
+  });
+
+  // 채팅 전송 시 GAS로 실어보낼 AI 설정 payload 조립 (값이 기본값/공백이면 아예 안 실어서 서버 기본값이 적용되게 함)
+  function buildAiSettingsPayload(){
+    const payload = { model: aiSettings.model, effort: aiSettings.effort };
+    if (aiSettings.temperature !== null && aiSettings.temperature !== undefined) payload.temperature = aiSettings.temperature;
+    if (aiSettings.enableWebSearch) payload.enableWebSearch = true;
+    if (aiSettings.enableWebFetch) payload.enableWebFetch = true;
+    if (aiSettings.enableCodeExecution) payload.enableCodeExecution = true;
+    if (aiSettings.enableAdvisor){
+      payload.enableAdvisor = true;
+      payload.advisorModel = aiSettings.advisorModel;
+    }
+    if (aiSettings.systemPrompt) payload.systemPrompt = aiSettings.systemPrompt;
+    return payload;
+  }
+
+  // ============================================================
   // AI 채팅 — 실제 GAS 연결
   // ============================================================
   const chatBody = document.getElementById('chatBody');
@@ -649,7 +860,7 @@
       const res = await fetch(GAS_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
+        body: JSON.stringify(Object.assign({
           messages: chatMessages,
           context: {
             currentPath: explorerPath,
@@ -657,7 +868,7 @@
             attachedItems: attachmentsForThisMessage
           },
           autoRef: autoRefMode
-        })
+        }, buildAiSettingsPayload()))
       });
       const data = await res.json();
       if (data.error){
