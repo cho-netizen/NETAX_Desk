@@ -70,6 +70,7 @@
   .modal-close:hover{ color:#fff; }
   .modal-body{ padding:16px 18px; display:flex; flex-direction:column; gap:4px; }
   .modal-label{ font-size:12px; font-weight:700; color:var(--navy); margin-top:10px; margin-bottom:2px; }
+  .modal-hint{ font-size:11px; color:var(--sub); line-height:1.5; margin-top:3px; }
   .modal-body select, .modal-body input[type="number"], .modal-body textarea{
     font-family:inherit; font-size:13px; padding:7px 9px; border:1px solid var(--line); border-radius:6px;
     color:var(--ink); width:100%;
@@ -238,6 +239,10 @@
 
         <label class="modal-label">온도 (temperature, 비워두면 모델 기본값)</label>
         <input type="number" id="settingsTemperature" min="0" max="1" step="0.1" placeholder="예: 0.7">
+        <div class="modal-hint">※ 온도는 Claude Haiku(낮음 강도일 때만) 또는 Gemini 계열에서만 실제로 적용됩니다. Sonnet/Opus/Fable은 사고 강도(adaptive thinking)를 쓰기 때문에 온도 값을 무시합니다.</div>
+
+        <label class="modal-label">최대 출력 토큰 (비워두면 강도별 기본값: 낮음 1,536 / 보통 6,000 / 높음 16,000)</label>
+        <input type="number" id="settingsMaxTokens" min="256" max="64000" step="500" placeholder="예: 8000">
 
         <div class="modal-checkrow">
           <label><input type="checkbox" id="settingsWebSearch"> 웹서치 사용</label>
@@ -665,6 +670,7 @@
     model: 'claude-sonnet-5',
     effort: 'medium',
     temperature: null,          // null이면 요청에 아예 안 실어서 모델 기본값 사용
+    maxTokens: null,            // null이면 강도(effort)별 기본 상한 사용
     enableWebSearch: false,
     enableWebFetch: false,
     enableCodeExecution: false,
@@ -687,6 +693,7 @@
   const settingsModel = document.getElementById('settingsModel');
   const settingsEffort = document.getElementById('settingsEffort');
   const settingsTemperature = document.getElementById('settingsTemperature');
+  const settingsMaxTokens = document.getElementById('settingsMaxTokens');
   const settingsWebSearch = document.getElementById('settingsWebSearch');
   const settingsWebFetch = document.getElementById('settingsWebFetch');
   const settingsCodeExec = document.getElementById('settingsCodeExec');
@@ -699,6 +706,7 @@
     settingsModel.value = s.model;
     settingsEffort.value = s.effort;
     settingsTemperature.value = (s.temperature === null || s.temperature === undefined) ? '' : s.temperature;
+    settingsMaxTokens.value = (s.maxTokens === null || s.maxTokens === undefined) ? '' : s.maxTokens;
     settingsWebSearch.checked = !!s.enableWebSearch;
     settingsWebFetch.checked = !!s.enableWebFetch;
     settingsCodeExec.checked = !!s.enableCodeExecution;
@@ -710,10 +718,12 @@
 
   function readSettingsForm(){
     const tempRaw = settingsTemperature.value.trim();
+    const maxTokRaw = settingsMaxTokens.value.trim();
     return {
       model: settingsModel.value,
       effort: settingsEffort.value,
       temperature: tempRaw === '' ? null : Math.max(0, Math.min(1, Number(tempRaw))),
+      maxTokens: maxTokRaw === '' ? null : Math.max(256, Math.min(64000, Math.floor(Number(maxTokRaw)))),
       enableWebSearch: settingsWebSearch.checked,
       enableWebFetch: settingsWebFetch.checked,
       enableCodeExecution: settingsCodeExec.checked,
@@ -752,6 +762,7 @@
   function buildAiSettingsPayload(){
     const payload = { model: aiSettings.model, effort: aiSettings.effort };
     if (aiSettings.temperature !== null && aiSettings.temperature !== undefined) payload.temperature = aiSettings.temperature;
+    if (aiSettings.maxTokens !== null && aiSettings.maxTokens !== undefined) payload.maxTokens = aiSettings.maxTokens;
     if (aiSettings.enableWebSearch) payload.enableWebSearch = true;
     if (aiSettings.enableWebFetch) payload.enableWebFetch = true;
     if (aiSettings.enableCodeExecution) payload.enableCodeExecution = true;
