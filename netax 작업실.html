@@ -136,6 +136,13 @@
     border:1px solid var(--line); border-radius:6px;
   }
 
+  /* ===== 전체화면 편집기 모달 ===== */
+  .full-editor-panel{
+    width:min(1240px, 97vw); height:min(900px, 92vh); max-height:92vh;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  .full-editor-frame{ flex:1; width:100%; border:none; }
+
   /* ===== 작업 영역 ===== */
   .workspace{ display:flex; flex:1; min-height:0; }
   .workspace.layout-row{ flex-direction:row; }
@@ -261,6 +268,7 @@
     </div>
     <button id="btnOpenSettings" class="settings-btn" title="AI 설정">⚙ AI 설정</button>
     <button id="btnOpenScan" class="settings-btn" title="문서 스캔 · PDF 조립">📷 스캔</button>
+    <button id="btnOpenFullEditor" class="settings-btn" title="전체화면으로 직접 편집 (AI 개입 없이)">🖋 전체화면 편집</button>
   </div>
 
   <div class="modal-overlay" id="settingsOverlay" style="display:none;">
@@ -366,6 +374,16 @@
         <button id="btnDownloadPdf" class="ghost-btn">PC에 다운로드</button>
         <button id="btnSaveToFolder" class="save-btn">현재 폴더에 저장</button>
       </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="fullEditorOverlay" style="display:none;">
+    <div class="modal-panel full-editor-panel">
+      <div class="modal-head">
+        <span id="fullEditorTitle">전체화면 편집</span>
+        <span class="modal-close" id="btnCloseFullEditor" title="닫기">✕</span>
+      </div>
+      <iframe id="fullEditorFrame" class="full-editor-frame" title="전체화면 문서 편집기"></iframe>
     </div>
   </div>
 
@@ -1104,6 +1122,29 @@
   function openScanModal(){ scanOverlay.style.display = 'flex'; }
   function closeScanModal(){ scanOverlay.style.display = 'none'; }
   document.getElementById('btnOpenScan').addEventListener('click', openScanModal);
+
+  // ---- 전체화면 편집기 (AI 개입 없이 넓게 직접 편집) ----
+  const fullEditorOverlay = document.getElementById('fullEditorOverlay');
+  const fullEditorFrame = document.getElementById('fullEditorFrame');
+  const fullEditorTitle = document.getElementById('fullEditorTitle');
+
+  function openFullEditor(){
+    if (currentOpenFile){
+      fullEditorTitle.textContent = '전체화면 편집 — ' + currentOpenFile.name;
+      fullEditorFrame.src = REPORT_WRITER_URL + '?fileId=' + encodeURIComponent(currentOpenFile.id);
+    } else {
+      fullEditorTitle.textContent = '전체화면 편집';
+      fullEditorFrame.src = REPORT_WRITER_URL;
+    }
+    fullEditorOverlay.style.display = 'flex';
+  }
+  function closeFullEditor(){
+    fullEditorOverlay.style.display = 'none';
+    fullEditorFrame.src = 'about:blank';
+  }
+  document.getElementById('btnOpenFullEditor').addEventListener('click', openFullEditor);
+  document.getElementById('btnCloseFullEditor').addEventListener('click', closeFullEditor);
+  fullEditorOverlay.addEventListener('click', (e)=>{ if (e.target === fullEditorOverlay) closeFullEditor(); });
   document.getElementById('btnCloseScan').addEventListener('click', closeScanModal);
   scanOverlay.addEventListener('click', (e)=>{ if (e.target === scanOverlay) closeScanModal(); });
 
