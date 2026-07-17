@@ -1100,26 +1100,35 @@
 
     const thinkingBubble = appendBubble('assistant', '생각 중…');
 
-    // report-writer가 열려있으면 "지금 타이핑 중인(저장 전) 내용"까지 실시간으로 받아옴
-    const liveContent = await getEditorLiveContent();
-    // report-writer가 아니라 이미지·PDF 뷰어로 열려 있으면, 그 파일 자체를 메시지에 실어보낼 블록을 준비
-    const openFileMediaBlock = await getOpenFileMediaBlock();
+    // report-writer가 열려있으면 "지금 타이핑 중인(저장 전) 내용"까지 실시간으로 받아옴 — 이미지/PDF와 동일하게 자동참조 ON일 때만
+    const liveContent = autoRefMode ? await getEditorLiveContent() : null;
+    // report-writer가 아니라 이미지·PDF 뷰어로 열려 있으면, 자동참조가 ON일 때만 그 파일을 이번 요청에 실어보냄.
+    // (OFF일 때 매턴 자동전송하면 낭비이므로, 명시적으로 열어보고 싶으면 첨부 기능을 쓰거나 자동참조를 켜야 함)
+    const openFileMediaBlock = autoRefMode ? await getOpenFileMediaBlock() : null;
 
     const openFileCtx = currentOpenFile
       ? Object.assign({}, currentOpenFile, (liveContent !== null ? { liveContent } : {}))
       : null;
 
-    const userContent = openFileMediaBlock
-      ? [{ type: 'text', text: text }, openFileMediaBlock]
-      : text;
-    chatMessages.push({ role: 'user', content: userContent });
+    // 대화 기록(chatMessages)에는 가벼운 텍스트만 남긴다 — 이미지를 기록에 박아두면
+    // 다음 턴부터 대화 전체를 다시 보낼 때마다 그 이미지까지 매번 반복 전송되어 낭비가 누적된다.
+    chatMessages.push({ role: 'user', content: text });
+
+    // 실제 API 요청에는(이번 한 턴에 한해서만) 이미지/문서 블록을 살짝 끼워 보낸다.
+    const requestMessages = chatMessages.slice();
+    if (openFileMediaBlock){
+      requestMessages[requestMessages.length - 1] = {
+        role: 'user',
+        content: [{ type: 'text', text: text }, openFileMediaBlock]
+      };
+    }
 
     try{
       const res = await fetch(GAS_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(Object.assign({
-          messages: chatMessages,
+          messages: requestMessages,
           context: {
             currentPath: explorerPath,
             openFile: openFileCtx,
