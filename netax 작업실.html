@@ -200,11 +200,10 @@
   .autoref-toggle{
     display:flex; align-items:center; gap:6px; flex-shrink:0;
     font-family:inherit; font-size:11.5px; font-weight:700; cursor:pointer;
-    border:1px solid var(--line); border-radius:20px; padding:4px 10px 4px 8px;
-    background:#eef0f3; color:#8a93a3;
+    border:1px solid rgba(255,255,255,0.25); border-radius:20px; padding:4px 10px 4px 8px;
+    background:var(--navy); color:#fff;
   }
-  .autoref-toggle .dot{ width:7px; height:7px; border-radius:50%; background:#b4bac4; flex-shrink:0; }
-  .autoref-toggle.is-on{ background:var(--navy); color:#fff; border-color:var(--navy); }
+  .autoref-toggle .dot{ width:7px; height:7px; border-radius:50%; background:#7c8598; flex-shrink:0; }
   .autoref-toggle.is-on .dot{ background:var(--gold); box-shadow:0 0 4px rgba(200,162,68,0.7); }
 
   /* ===== AI 채팅 패널 ===== */
@@ -304,7 +303,7 @@
       <button type="button" id="btnAttachSelected">첨부</button>
       <button type="button" id="btnClearSelected" class="ghost">취소</button>
     </div>
-    <button type="button" id="btnAutoRef" class="autoref-toggle" title="자동참조 모드: AI가 알아서 폴더/파일을 읽을지, 명시적으로 요청했을 때만 읽을지"><span class="dot"></span>자동참조 OFF</button>
+    <button type="button" id="btnAutoRef" class="autoref-toggle" title="자동참조 모드: AI가 알아서 폴더/파일을 읽을지, 명시적으로 요청했을 때만 읽을지"><span class="dot"></span>수동참조</button>
     <button id="btnOpenSettings" class="tb-btn" title="AI 설정">⚙ 설정</button>
     <button id="btnOpenScan" class="tb-btn" title="문서 스캔 · PDF 조립">📷 스캔</button>
     <button id="btnOpenFullEditor" class="tb-btn" title="전체화면으로 직접 편집 (AI 개입 없이)">🖋 편집</button>
@@ -848,8 +847,11 @@
   let autoRefMode = localStorage.getItem(AUTOREF_KEY) === '1';
 
   function renderAutoRefButton(){
-    btnAutoRef.innerHTML = '<span class="dot"></span>자동참조 ' + (autoRefMode ? 'ON' : 'OFF');
+    btnAutoRef.innerHTML = '<span class="dot"></span>' + (autoRefMode ? '자동참조' : '수동참조');
     btnAutoRef.classList.toggle('is-on', autoRefMode);
+    btnAutoRef.title = autoRefMode
+      ? '자동참조 중 — AI가 알아서 폴더/파일을 읽습니다. 클릭하면 수동참조로 전환'
+      : '수동참조 중 — 명시적으로 요청했을 때만 AI가 읽습니다. 클릭하면 자동참조로 전환';
   }
   btnAutoRef.addEventListener('click', ()=>{
     autoRefMode = !autoRefMode;
