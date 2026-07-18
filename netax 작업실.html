@@ -217,16 +217,32 @@
   }
   .apply-edit-btn:hover{ background:var(--gold-light); }
   .apply-edit-btn:disabled{ background:#cfd4dc; color:var(--sub); cursor:default; }
-  .chat-input{ display:flex; gap:8px; padding:12px; border-top:1px solid var(--line); flex-shrink:0; }
-  .chat-input input{
-    flex:1; border:1px solid var(--line); border-radius:8px; padding:9px 12px;
+  .chat-input-wrap{
+    display:flex; flex-direction:column; gap:6px; padding:10px 12px;
+    border-top:1px solid var(--line); flex-shrink:0;
+  }
+  .chat-input-wrap input{
+    border:1px solid var(--line); border-radius:10px; padding:10px 12px;
     font-family:inherit; font-size:13.5px;
   }
-  .chat-input button{
-    background:var(--navy); color:#fff; border:none; border-radius:8px;
-    padding:9px 16px; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer;
+  .chat-toolbar{ display:flex; align-items:center; gap:8px; }
+  .chip-btn{
+    display:flex; align-items:center; gap:4px; font-family:inherit; font-size:11.5px; font-weight:600;
+    cursor:pointer; border:1px solid var(--line); border-radius:14px; padding:4px 10px;
+    background:#f4f5f8; color:var(--sub);
   }
-  .chat-input button:hover{ background:var(--navy-deep); }
+  .chip-btn:hover{ background:#eaecef; color:var(--navy); }
+  .chip-btn .sep{ color:#c3c8d1; }
+  .icon-round-btn{
+    width:32px; height:32px; border-radius:50%; border:1px solid var(--line);
+    background:#fff; color:var(--sub); font-size:14px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .icon-round-btn:hover{ background:#f0f2f6; color:var(--navy); }
+  .icon-round-btn.send{ background:var(--gold); border-color:var(--gold); color:var(--navy-deep); font-weight:700; }
+  .icon-round-btn.send:hover{ background:var(--gold-light); }
+  .icon-round-btn.recording{ background:#d9534f; border-color:#d9534f; color:#fff; animation:pulseRec 1.1s ease-in-out infinite; }
+  @keyframes pulseRec{ 0%,100%{ box-shadow:0 0 0 0 rgba(217,83,79,0.5);} 50%{ box-shadow:0 0 0 6px rgba(217,83,79,0);} }
 
   /* ===== 파일 드래그&드롭 첨부 ===== */
   .chat-body.drag-over{ background:#eef3fb; outline:2px dashed var(--gold); outline-offset:-6px; }
@@ -434,9 +450,16 @@
         <div class="msg ai">안녕하세요. 우측 탐색기에서 보고 계신 위치나 열어두신 파일에 대해 물어보시면 답변해드립니다. (자동참조 토글로 "알아서 읽기" 여부를 바꿀 수 있어요, 또는 우측 파일을 여기로 끌어다 놓으셔도 됩니다)</div>
       </div>
       <div class="attach-bar" id="attachBar" style="display:none;"></div>
-      <div class="chat-input">
+      <div class="chat-input-wrap">
         <input type="text" id="chatInputEl" placeholder="메시지를 입력하세요… (파일을 여기로 끌어다 놓을 수 있어요)" aria-label="메시지 입력">
-        <button type="button" id="btnChatSend">보내기</button>
+        <div class="chat-toolbar">
+          <button type="button" id="chatModelBadge" class="chip-btn" title="모델·강도 설정 열기">
+            <span id="chatModelLabel">Sonnet 5</span><span class="sep">·</span><span id="chatEffortLabel">보통</span>
+          </button>
+          <div class="spacer"></div>
+          <button type="button" id="btnVoiceInput" class="icon-round-btn" title="음성으로 입력">🎤</button>
+          <button type="button" id="btnChatSend" class="icon-round-btn send" title="보내기">➤</button>
+        </div>
       </div>
     </div>
 
@@ -960,7 +983,28 @@
     aiSettings = readSettingsForm();
     localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(aiSettings));
     closeSettingsModal();
+    updateChatModelBadge();
   });
+
+  // 입력창 아래 "모델 · 강도" 뱃지 표시 갱신
+  const MODEL_LABELS = {
+    'claude-sonnet-5': 'Sonnet 5',
+    'claude-opus-4-8': 'Opus 4.8',
+    'claude-haiku-4-5-20251001': 'Haiku 4.5',
+    'claude-fable-5': 'Fable 5',
+    'gemini-3.1-pro-preview': 'Gemini 3.1 Pro',
+    'gemini-3.5-flash': 'Gemini 3.5 Flash',
+    'gemini-3.1-flash-lite': 'Gemini 3.1 Flash-Lite'
+  };
+  const EFFORT_LABELS = { low: '빠름', medium: '보통', high: '신중' };
+  const chatModelLabel = document.getElementById('chatModelLabel');
+  const chatEffortLabel = document.getElementById('chatEffortLabel');
+  function updateChatModelBadge(){
+    chatModelLabel.textContent = MODEL_LABELS[aiSettings.model] || aiSettings.model;
+    chatEffortLabel.textContent = EFFORT_LABELS[aiSettings.effort] || aiSettings.effort;
+  }
+  document.getElementById('chatModelBadge').addEventListener('click', openSettingsModal);
+  updateChatModelBadge();
 
   // 채팅 전송 시 GAS로 실어보낼 AI 설정 payload 조립 (값이 기본값/공백이면 아예 안 실어서 서버 기본값이 적용되게 함)
   function buildAiSettingsPayload(){
@@ -1163,6 +1207,50 @@
       sendChatMessage();
     }
   });
+
+  // ---- 음성 입력 (마이크 버튼) — 브라우저 내장 음성인식 사용 ----
+  const btnVoiceInput = document.getElementById('btnVoiceInput');
+  const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let voiceRecognition = null;
+  let isVoiceRecording = false;
+
+  if (!SpeechRecognitionCtor){
+    btnVoiceInput.title = '이 브라우저는 음성 입력을 지원하지 않습니다 (크롬 권장)';
+    btnVoiceInput.style.opacity = '0.4';
+  } else {
+    btnVoiceInput.addEventListener('click', ()=>{
+      if (isVoiceRecording){
+        voiceRecognition && voiceRecognition.stop();
+        return;
+      }
+      voiceRecognition = new SpeechRecognitionCtor();
+      voiceRecognition.lang = 'ko-KR';
+      voiceRecognition.interimResults = false;
+      voiceRecognition.maxAlternatives = 1;
+
+      voiceRecognition.onstart = ()=>{
+        isVoiceRecording = true;
+        btnVoiceInput.classList.add('recording');
+        btnVoiceInput.textContent = '●';
+      };
+      voiceRecognition.onresult = (e)=>{
+        const transcript = e.results[0][0].transcript;
+        chatInputEl.value = (chatInputEl.value ? chatInputEl.value + ' ' : '') + transcript;
+        chatInputEl.focus();
+      };
+      voiceRecognition.onerror = (e)=>{
+        if (e.error !== 'no-speech' && e.error !== 'aborted'){
+          alert('음성 인식 중 오류: ' + e.error);
+        }
+      };
+      voiceRecognition.onend = ()=>{
+        isVoiceRecording = false;
+        btnVoiceInput.classList.remove('recording');
+        btnVoiceInput.textContent = '🎤';
+      };
+      voiceRecognition.start();
+    });
+  }
 
   // ============================================================
   // 문서 스캔 · PDF 조립
