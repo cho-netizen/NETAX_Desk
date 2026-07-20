@@ -69,6 +69,12 @@ body.edit-mode .edit-add-folder-btn{display:block;}
 .edit-del-link-btn:hover{background:#e5bcbc;}
 .edit-add-link-btn{grid-column:1/-1;padding:10px;border:1px dashed #9ca3af;border-radius:7px;background:#fff;color:#374151;cursor:pointer;font-weight:700;font-size:14px;}
 .edit-add-link-btn:hover{background:#f3f5f8;}
+.drag-grip{flex:0 0 auto;cursor:grab;color:#9ca3af;font-size:16px;padding:0 6px;user-select:none;display:flex;align-items:center;}
+.drag-grip:active{cursor:grabbing;}
+.folder-head-row .drag-grip{padding-left:12px;}
+.folder[draggable="true"].dragging,
+.link-item-wrap[draggable="true"].dragging{opacity:0.4;}
+body.edit-mode .folder-head-row{cursor:grab;}
 </style>
 </head>
 <body>
@@ -308,15 +314,18 @@ function renderFolders(folders) {
       const delLinkBtn = editMode
         ? `<button type="button" class="edit-del-link-btn" data-action="del-link" data-folder="${escAttr(f.name)}" data-title="${escAttr(l.title)}" title="링크 삭제">✕</button>`
         : '';
-      return `<div class="link-item-wrap"><a class="link-item" href="${escAttr(resolved.href)}" rel="noopener noreferrer" target="_blank">${escText(l.title)}${resolved.badge}</a>${delLinkBtn}</div>`;
+      const grip = editMode ? `<span class="drag-grip" title="끌어서 순서 변경">⠿</span>` : '';
+      return `<div class="link-item-wrap" data-title="${escAttr(l.title)}">${grip}<a class="link-item" href="${escAttr(resolved.href)}" rel="noopener noreferrer" target="_blank">${escText(l.title)}${resolved.badge}</a>${delLinkBtn}</div>`;
     }).join('');
     const addLinkBtn = editMode
       ? `<button type="button" class="edit-add-link-btn" data-action="add-link" data-folder="${escAttr(f.name)}">+ 링크 추가</button>`
       : '';
 
+    const folderGrip = editMode ? `<span class="drag-grip folder-grip" title="끌어서 폴더 순서 변경">⠿</span>` : '';
     return `
 <section class="folder" data-folder="${escAttr(f.name.toLowerCase())}">
 <div class="folder-head-row">
+${folderGrip}
 <button aria-expanded="false" class="folder-btn" type="button">
 <span class="folder-left"><span class="folder-icon">${escText(f.icon)}</span><span class="folder-name">${escText(f.name)}</span></span>
 <span class="folder-meta">${f.links.length}개 <span class="pin-badge">고정</span></span>
@@ -419,8 +428,68 @@ function bindFolderInteractions() {
     });
   });
 
+  if (editMode) bindDragReorder();
+
   // 검색창에 이미 입력된 상태로 재렌더링됐을 수 있으니(편집모드 토글 등), 지금 값 기준으로 즉시 다시 필터링
   applySearchFilter(folders);
+}
+
+// ── 드래그로 순서 바꾸기 (편집모드에서만 동작) ──────────────────────
+// HTML5 네이티브 드래그앤드롭 사용. dragover마다 실제 DOM 순서를 바로 바꿔서(미리보기),
+// drop 시점에 그 최종 DOM 순서를 그대로 서버에 반영한다.
+function makeDraggable(container, itemSelector, onDropCommit) {
+  let draggedEl = null;
+  Array.from(container.querySelectorAll(itemSelector)).forEach(el => {
+    el.setAttribute('draggable', 'true');
+    el.addEventListener('dragstart', e => {
+      draggedEl = el;
+      el.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    el.addEventListener('dragend', () => { el.classList.remove('dragging'); draggedEl = null; });
+    el.addEventListener('dragover', e => {
+      e.preventDefault();
+      if (!draggedEl || draggedEl === el) return;
+      const rect = el.getBoundingClientRect();
+      const before = (e.clientY - rect.top) < rect.height / 2;
+      el.parentNode.insertBefore(draggedEl, before ? el : el.nextSibling);
+    });
+    el.addEventListener('drop', e => {
+      e.preventDefault();
+      onDropCommit();
+    });
+  });
+}
+
+function bindDragReorder() {
+  const foldersEl = document.getElementById('folders');
+
+  // 폴더 순서 — #folders 바로 아래 .folder들의 지금 DOM 순서를 그대로 서버에 반영
+  makeDraggable(foldersEl, ':scope > .folder', async () => {
+    const order = Array.from(foldersEl.querySelectorAll(':scope > .folder')).map(el => el.dataset.folder);
+    try { await callGas('reorderFolders', { order, password: getEditPassword() }); }
+    catch (err) {
+      if (String(err.message || '').includes('비밀번호')) clearEditPassword();
+      alert('순서 저장 중 오류: ' + err.message);
+      await loadAndRender(); // 실패했으면 서버 기준으로 화면을 다시 맞춰준다
+      return;
+    }
+  });
+
+  // 폴더 안 링크 순서 — 폴더마다 각자의 .link-grid 안에서만 순서가 섞이게(다른 폴더로 못 넘어가게)
+  foldersEl.querySelectorAll('.folder .link-grid').forEach(grid => {
+    const folderEl = grid.closest('.folder');
+    const folderName = folderEl ? folderEl.dataset.folder : '';
+    makeDraggable(grid, '.link-item-wrap', async () => {
+      const order = Array.from(grid.querySelectorAll('.link-item-wrap')).map(el => el.dataset.title);
+      try { await callGas('reorderLinks', { folderName, order, password: getEditPassword() }); }
+      catch (err) {
+        if (String(err.message || '').includes('비밀번호')) clearEditPassword();
+        alert('순서 저장 중 오류: ' + err.message);
+        await loadAndRender();
+      }
+    });
+  });
 }
 
 function applySearchFilter(folders) {
