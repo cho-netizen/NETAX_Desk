@@ -50,6 +50,25 @@ a.folder-direct:hover{background:var(--btnh);text-decoration:none}
 
 .status-msg{margin-top:18px;padding:18px;border:1px dashed #9ca3af;border-radius:8px;background:#fff;color:#374151;font-weight:700}
 .status-msg.error{border-color:#b91c1c;color:#b91c1c}
+
+/* ===== 편집모드(폴더/링크 추가·삭제) ===== */
+.header-actions{display:flex;gap:8px;flex:0 0 auto;}
+.edit-toggle-btn{display:inline-block;padding:9px 14px;border:1px solid #9ca3af;border-radius:7px;background:#d8dde5;color:#111827;cursor:pointer;font-size:15px;font-weight:800;white-space:nowrap;}
+.edit-toggle-btn:hover{background:#c8d0db;}
+.edit-toggle-btn.is-on{background:#1f2937;color:#fff;border-color:#1f2937;}
+.edit-add-folder-btn{display:none;width:100%;margin-bottom:10px;padding:12px;border:1px dashed #9ca3af;border-radius:9px;background:#fff;color:#374151;cursor:pointer;font-weight:800;font-size:15px;}
+.edit-add-folder-btn:hover{background:#f3f5f8;}
+body.edit-mode .edit-add-folder-btn{display:block;}
+.folder-head-row{display:flex;align-items:stretch;}
+.folder-head-row .folder-btn{flex:1;}
+.edit-del-folder-btn{flex:0 0 auto;border:0;border-left:1px solid var(--border);background:#f0d5d5;color:#a83232;font-size:16px;cursor:pointer;padding:0 16px;}
+.edit-del-folder-btn:hover{background:#e5bcbc;}
+.link-item-wrap{display:flex;align-items:stretch;}
+.link-item-wrap .link-item{flex:1;border-radius:7px 0 0 7px;}
+.edit-del-link-btn{flex:0 0 auto;border:1px solid #c5ccd6;border-left:0;border-radius:0 7px 7px 0;background:#f0d5d5;color:#a83232;cursor:pointer;font-size:14px;padding:0 10px;}
+.edit-del-link-btn:hover{background:#e5bcbc;}
+.edit-add-link-btn{grid-column:1/-1;padding:10px;border:1px dashed #9ca3af;border-radius:7px;background:#fff;color:#374151;cursor:pointer;font-weight:700;font-size:14px;}
+.edit-add-link-btn:hover{background:#f3f5f8;}
 </style>
 </head>
 <body>
@@ -59,18 +78,26 @@ a.folder-direct:hover{background:var(--btnh);text-decoration:none}
   <header>
     <div class="header-top">
       <h1>NETAX Desk <span style="font-size:18px;color:#6b7280;">v2.1</span></h1>
-      <a class="guide-link" href="guide.html">📖 Guide</a>
+      <div class="header-actions">
+        <button type="button" class="edit-toggle-btn" id="btnEditToggle">✏️ 편집</button>
+        <a class="guide-link" href="guide.html">📖 Guide</a>
+      </div>
     </div>
   </header>
   <input autocomplete="off" class="search" id="search" placeholder="검색어 입력: 홈택스, 양도, Claude, Drive..." type="search"/>
+  <button type="button" class="edit-add-folder-btn" id="btnAddFolder">+ 새 폴더 추가</button>
   <main class="folders" id="folders"></main>
   <div class="status-msg" id="statusMsg">불러오는 중...</div>
   <div class="no-result" id="noResult">검색 결과가 없습니다.</div>
 </div>
 </div>
 
+<script src="/config.js"></script>
 <script>
-// ── 데이터 원본: 구글시트 "웹에 게시" CSV 링크 ──────────────────────
+// ── 데이터 원본 ──────────────────────────────────────────────
+// GAS_URL이 설정돼 있으면 그쪽에서 실시간으로 읽고(추가·삭제도 그쪽으로 함),
+// 비어있으면(config.js 미설정) 예전처럼 "웹에 게시" CSV를 읽기 전용으로 쓴다.
+const GAS_URL = (window.DESK_CONFIG && window.DESK_CONFIG.GAS_URL) || '';
 const FOLDERS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUwVHa8DnEWvrU3Kr-sOCncBFF6v9zVp1nWPlH0PkNa7_-uF6XeUVFo68DWLz4BCQHRcSf21gNHd-v/pub?gid=0&single=true&output=csv";
 const LINKS_CSV_URL   = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUwVHa8DnEWvrU3Kr-sOCncBFF6v9zVp1nWPlH0PkNa7_-uF6XeUVFo68DWLz4BCQHRcSf21gNHd-v/pub?gid=217224871&single=true&output=csv";
 
@@ -121,7 +148,7 @@ function resolveLink(url, mode) {
   return { href: url, badge: '' };
 }
 
-// ── CSV 파서 ──────────────────────────────────────────────
+// ── CSV 파서 (GAS_URL 미설정 시 폴백 경로에서만 씀) ──────────────────
 function parseCSV(text) {
   const rows = [];
   let row = [], field = '', inQuotes = false;
@@ -160,6 +187,19 @@ async function fetchCSV(url) {
   return csvToObjects(await res.text());
 }
 
+// ── GAS 호출 (GAS_URL 설정 시 읽기·쓰기 전부 이쪽) ──────────────────
+async function callGas(action, payload) {
+  const res = await fetch(GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // GAS 웹앱 CORS preflight 회피
+    body: JSON.stringify(Object.assign({ action }, payload))
+  });
+  if (!res.ok) throw new Error('네트워크 오류 (status ' + res.status + ')');
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+
 function escAttr(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');}
 function escText(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
@@ -173,14 +213,41 @@ function normalizeFolderKey(s) {
     .toLowerCase();
 }
 
+// ── 편집모드 ──────────────────────────────────────────────
+// GAS 웹앱이 "전체 공개"로 배포되므로, 실제 쓰기 작업은 서버(GAS)에서 비밀번호를 검증한다.
+// 여기 sessionStorage는 매번 다시 입력하지 않도록 이 탭 안에서만 잠깐 기억해두는 용도일 뿐,
+// 그 자체가 보안장치는 아니다(진짜 검증은 GAS 쪽 checkEditPassword_).
+let editMode = false;
+let lastFolders = [];
+
+function getEditPassword() {
+  let pw = sessionStorage.getItem('desk_edit_pw');
+  if (pw === null) {
+    pw = window.prompt('편집 비밀번호를 입력하세요.') || '';
+    sessionStorage.setItem('desk_edit_pw', pw);
+  }
+  return pw;
+}
+function clearEditPassword() { sessionStorage.removeItem('desk_edit_pw'); }
+
 async function loadAndRender() {
   const foldersEl = document.getElementById('folders');
   const statusEl = document.getElementById('statusMsg');
+  statusEl.style.display = 'block';
+  statusEl.classList.remove('error');
+  statusEl.textContent = '불러오는 중...';
   try {
-    const [folderRows, linkRows] = await Promise.all([
-      fetchCSV(FOLDERS_CSV_URL),
-      fetchCSV(LINKS_CSV_URL)
-    ]);
+    let folderRows, linkRows;
+    if (GAS_URL) {
+      const data = await callGas('listAll', {});
+      folderRows = data.folders;
+      linkRows = data.links;
+    } else {
+      [folderRows, linkRows] = await Promise.all([
+        fetchCSV(FOLDERS_CSV_URL),
+        fetchCSV(LINKS_CSV_URL)
+      ]);
+    }
 
     const folders = folderRows
       .map(f => ({
@@ -207,43 +274,125 @@ async function loadAndRender() {
       console.warn('링크가 0개로 인식된 폴더(시트의 폴더명 표기를 다시 확인해주세요):', emptyFolders);
     }
 
-    foldersEl.innerHTML = folders.map(f => {
-      // 링크가 1개뿐인 폴더는 펼쳐볼 하위 목록이 없으므로, 아코디언 대신
-      // 폴더명 자체가 바로 클릭 가능한 링크가 되도록 렌더링 (한 번 더 열 필요 없음)
-      if (f.links.length === 1) {
-        const resolved = resolveLink(f.links[0].href, f.links[0].mode);
-        return `
-<a class="folder folder-direct" data-folder="${escAttr(f.name.toLowerCase())}" href="${escAttr(resolved.href)}" rel="noopener noreferrer" target="_blank">
-<span class="folder-left"><span class="folder-icon">${escText(f.icon)}</span><span class="folder-name">${escText(f.name)}</span></span>
-<span class="folder-meta">${resolved.badge}</span>
-</a>`;
-      }
-      return `
-<section class="folder" data-folder="${escAttr(f.name.toLowerCase())}">
-<button aria-expanded="false" class="folder-btn" type="button">
-<span class="folder-left"><span class="folder-icon">${escText(f.icon)}</span><span class="folder-name">${escText(f.name)}</span></span>
-<span class="folder-meta">${f.links.length}개 <span class="pin-badge">고정</span></span>
-</button>
-<div class="panel"><div class="link-grid">${f.links.map(l => {
-  const resolved = resolveLink(l.href, l.mode);
-  return `<a class="link-item" href="${escAttr(resolved.href)}" rel="noopener noreferrer" target="_blank">${escText(l.title)}${resolved.badge}</a>`;
-}).join('')}</div></div>
-</section>`;
-    }).join('');
-
+    lastFolders = folders;
+    renderFolders(folders);
     statusEl.style.display = 'none';
-    initInteractions();
   } catch (err) {
     console.error(err);
-    statusEl.textContent = '데이터를 불러오지 못했습니다. 구글시트 게시 상태 또는 인터넷 연결을 확인해주세요. (' + err.message + ')';
+    statusEl.textContent = '데이터를 불러오지 못했습니다. ' + (GAS_URL ? 'GAS 배포 상태' : '구글시트 게시 상태') + ' 또는 인터넷 연결을 확인해주세요. (' + err.message + ')';
     statusEl.classList.add('error');
   }
 }
 
-function initInteractions() {
+function renderFolders(folders) {
+  const foldersEl = document.getElementById('folders');
+  foldersEl.innerHTML = folders.map(f => {
+    const delFolderBtn = editMode
+      ? `<button type="button" class="edit-del-folder-btn" data-action="del-folder" data-folder="${escAttr(f.name)}" title="폴더 삭제">🗑</button>`
+      : '';
+
+    // 링크가 1개뿐인 폴더는(편집모드가 아닐 때만) 아코디언 대신 폴더명 자체가 바로
+    // 클릭 가능한 링크가 되도록 렌더링 — 편집모드에서는 삭제·추가 버튼이 필요하므로
+    // 항상 아코디언 형태로 펼쳐서 보여준다.
+    if (f.links.length === 1 && !editMode) {
+      const resolved = resolveLink(f.links[0].href, f.links[0].mode);
+      return `
+<a class="folder folder-direct" data-folder="${escAttr(f.name.toLowerCase())}" href="${escAttr(resolved.href)}" rel="noopener noreferrer" target="_blank">
+<span class="folder-left"><span class="folder-icon">${escText(f.icon)}</span><span class="folder-name">${escText(f.name)}</span></span>
+<span class="folder-meta">${resolved.badge}</span>
+</a>`;
+    }
+
+    const linksHtml = f.links.map(l => {
+      const resolved = resolveLink(l.href, l.mode);
+      const delLinkBtn = editMode
+        ? `<button type="button" class="edit-del-link-btn" data-action="del-link" data-folder="${escAttr(f.name)}" data-title="${escAttr(l.title)}" title="링크 삭제">✕</button>`
+        : '';
+      return `<div class="link-item-wrap"><a class="link-item" href="${escAttr(resolved.href)}" rel="noopener noreferrer" target="_blank">${escText(l.title)}${resolved.badge}</a>${delLinkBtn}</div>`;
+    }).join('');
+    const addLinkBtn = editMode
+      ? `<button type="button" class="edit-add-link-btn" data-action="add-link" data-folder="${escAttr(f.name)}">+ 링크 추가</button>`
+      : '';
+
+    return `
+<section class="folder" data-folder="${escAttr(f.name.toLowerCase())}">
+<div class="folder-head-row">
+<button aria-expanded="false" class="folder-btn" type="button">
+<span class="folder-left"><span class="folder-icon">${escText(f.icon)}</span><span class="folder-name">${escText(f.name)}</span></span>
+<span class="folder-meta">${f.links.length}개 <span class="pin-badge">고정</span></span>
+</button>
+${delFolderBtn}
+</div>
+<div class="panel"><div class="link-grid">${linksHtml}${addLinkBtn}</div></div>
+</section>`;
+  }).join('');
+
+  bindFolderInteractions();
+}
+
+// ── 편집 액션 (추가/삭제) — #folders 컨테이너에 이벤트 위임으로 한 번만 걸어둔다.
+// 재렌더링될 때마다 새 리스너를 계속 붙이지 않도록 하기 위함.
+document.getElementById('folders').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const action = btn.dataset.action;
+
+  try {
+    if (action === 'del-folder') {
+      const name = btn.dataset.folder;
+      if (!window.confirm(`"${name}" 폴더와 그 안의 모든 링크를 삭제할까요? 되돌릴 수 없습니다.`)) return;
+      await callGas('deleteFolder', { name, password: getEditPassword() });
+      await loadAndRender();
+    } else if (action === 'del-link') {
+      const folderName = btn.dataset.folder, title = btn.dataset.title;
+      if (!window.confirm(`"${title}" 링크를 삭제할까요?`)) return;
+      await callGas('deleteLink', { folderName, title, password: getEditPassword() });
+      await loadAndRender();
+    } else if (action === 'add-link') {
+      const folderName = btn.dataset.folder;
+      const title = window.prompt('링크 이름을 입력하세요.');
+      if (!title) return;
+      const url = window.prompt('URL을 입력하세요. (https:// 생략 가능)');
+      if (!url) return;
+      const mode = window.prompt('연결방식 — 앱/웹/공백 중 하나 (모르면 그냥 확인)', '') || '';
+      await callGas('addLink', { folderName, title, url, mode, password: getEditPassword() });
+      await loadAndRender();
+    }
+  } catch (err) {
+    if (String(err.message || '').includes('비밀번호')) clearEditPassword(); // 틀렸으면 다음에 다시 물어보게
+    alert('처리 중 오류: ' + err.message);
+  }
+});
+
+document.getElementById('btnAddFolder').addEventListener('click', async () => {
+  const name = window.prompt('새 폴더 이름을 입력하세요.');
+  if (!name) return;
+  const icon = window.prompt('아이콘(이모지, 선택— 그냥 확인해도 됨)', '') || '';
+  try {
+    await callGas('addFolder', { name, icon, password: getEditPassword() });
+    await loadAndRender();
+  } catch (err) {
+    if (String(err.message || '').includes('비밀번호')) clearEditPassword();
+    alert('처리 중 오류: ' + err.message);
+  }
+});
+
+const btnEditToggle = document.getElementById('btnEditToggle');
+btnEditToggle.addEventListener('click', () => {
+  if (!GAS_URL) { alert('편집 기능을 쓰려면 config.js에 GAS_URL을 먼저 설정해야 합니다.'); return; }
+  editMode = !editMode;
+  document.body.classList.toggle('edit-mode', editMode);
+  btnEditToggle.classList.toggle('is-on', editMode);
+  btnEditToggle.textContent = editMode ? '✏️ 편집중 (끄기)' : '✏️ 편집';
+  renderFolders(lastFolders); // 데이터를 다시 안 불러오고 지금 있는 데이터로 화면만 다시 그림
+});
+
+// ── 검색/펼치기 — search 인풋은 페이지 전체에서 한 번만 존재하므로 리스너도 한 번만 건다.
+// (폴더 목록은 재렌더링될 때마다 통째로 새 DOM이라 그쪽 리스너만 매번 다시 붙이면 됨 → bindFolderInteractions)
+function bindFolderInteractions() {
   const folders = Array.from(document.querySelectorAll('.folder'));
-  const search = document.getElementById('search');
-  const noResult = document.getElementById('noResult');
   let pinned = null;
 
   function closeAllExcept(target) { folders.forEach(f => { if (f !== target) { f.classList.remove('open'); const b = f.querySelector('.folder-btn'); if (b) b.setAttribute('aria-expanded', 'false'); } }); }
@@ -253,6 +402,7 @@ function initInteractions() {
   folders.forEach(f => {
     const btn = f.querySelector('.folder-btn');
     if (!btn) return; // 직접 링크(단일 링크) 폴더는 펼치기/고정 동작 자체가 필요 없음 — 클릭하면 바로 이동
+    const search = document.getElementById('search');
     f.addEventListener('mouseenter', () => { if (!search.value.trim()) openFolder(f); });
     f.addEventListener('mouseleave', () => { if (!search.value.trim()) closeFolder(f); });
     btn.addEventListener('click', e => {
@@ -269,29 +419,37 @@ function initInteractions() {
     });
   });
 
-  search.addEventListener('input', () => {
-    const q = search.value.trim().toLowerCase();
-    if (!q) {
-      folders.forEach(f => { f.classList.remove('hidden'); f.querySelectorAll('.link-item').forEach(a => a.classList.remove('hidden')); });
-      noResult.style.display = 'none';
-      if (pinned) openFolder(pinned); else folders.forEach(f => f.classList.remove('open'));
-      return;
-    }
-    let any = false;
-    folders.forEach(f => {
-      const fname = (f.dataset.folder || '').toLowerCase();
-      let hit = fname.includes(q);
-      f.querySelectorAll('.link-item').forEach(a => {
-        const m = a.textContent.toLowerCase().includes(q) || a.href.toLowerCase().includes(q);
-        a.classList.toggle('hidden', !m && !fname.includes(q));
-        if (m) hit = true;
-      });
-      f.classList.toggle('hidden', !hit);
-      if (hit) { f.classList.add('open'); any = true; } else f.classList.remove('open');
-    });
-    noResult.style.display = any ? 'none' : 'block';
-  });
+  // 검색창에 이미 입력된 상태로 재렌더링됐을 수 있으니(편집모드 토글 등), 지금 값 기준으로 즉시 다시 필터링
+  applySearchFilter(folders);
 }
+
+function applySearchFilter(folders) {
+  const search = document.getElementById('search');
+  const noResult = document.getElementById('noResult');
+  const q = search.value.trim().toLowerCase();
+  if (!q) {
+    folders.forEach(f => { f.classList.remove('hidden'); f.querySelectorAll('.link-item').forEach(a => a.classList.remove('hidden')); });
+    noResult.style.display = 'none';
+    return;
+  }
+  let any = false;
+  folders.forEach(f => {
+    const fname = (f.dataset.folder || '').toLowerCase();
+    let hit = fname.includes(q);
+    f.querySelectorAll('.link-item').forEach(a => {
+      const m = a.textContent.toLowerCase().includes(q) || a.href.toLowerCase().includes(q);
+      a.classList.toggle('hidden', !m && !fname.includes(q));
+      if (m) hit = true;
+    });
+    f.classList.toggle('hidden', !hit);
+    if (hit) { f.classList.add('open'); any = true; } else f.classList.remove('open');
+  });
+  noResult.style.display = any ? 'none' : 'block';
+}
+
+document.getElementById('search').addEventListener('input', () => {
+  applySearchFilter(Array.from(document.querySelectorAll('.folder')));
+});
 
 // 모든 함수·상수 선언이 끝난 뒤에 바로 실행
 loadAndRender();
