@@ -434,58 +434,112 @@ function bindFolderInteractions() {
   applySearchFilter(folders);
 }
 
-// ── 드래그로 순서 바꾸기 (편집모드에서만 동작) ──────────────────────
+// ── 드래그로 순서 바꾸기 / 폴더 간 이동 (편집모드에서만 동작) ──────────────────────
 // HTML5 네이티브 드래그앤드롭 사용. dragover마다 실제 DOM 순서를 바로 바꿔서(미리보기),
-// drop 시점에 그 최종 DOM 순서를 그대로 서버에 반영한다.
-function makeDraggable(container, itemSelector, onDropCommit) {
-  let draggedEl = null;
-  Array.from(container.querySelectorAll(itemSelector)).forEach(el => {
-    el.setAttribute('draggable', 'true');
-    el.addEventListener('dragstart', e => {
-      draggedEl = el;
-      el.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
-    });
-    el.addEventListener('dragend', () => { el.classList.remove('dragging'); draggedEl = null; });
-    el.addEventListener('dragover', e => {
-      e.preventDefault();
-      if (!draggedEl || draggedEl === el) return;
-      const rect = el.getBoundingClientRect();
-      const before = (e.clientY - rect.top) < rect.height / 2;
-      el.parentNode.insertBefore(draggedEl, before ? el : el.nextSibling);
-    });
-    el.addEventListener('drop', e => {
-      e.preventDefault();
-      onDropCommit();
-    });
-  });
-}
+// drop 시점에 그 최종 상태를 서버에 반영한다.
+//
+// 주의: .folder(폴더 전체)와 .link-item-wrap(그 안의 링크 하나) 둘 다 draggable인데,
+// 링크가 폴더의 자손이라 링크에서 드래그를 시작하면 dragstart가 부모 .folder까지
+// 버블링돼서 "폴더 이동"으로 오인될 수 있다 — 그래서 링크 쪽 dragstart에서
+// stopPropagation()으로 반드시 막아야 한다(이게 빠지면 링크를 옮기려다 폴더째로
+// 움직여버리는 버그가 생김).
+let draggedFolderEl = null;
+let draggedLinkEl = null;
+let draggedLinkOriginFolder = null;
 
 function bindDragReorder() {
   const foldersEl = document.getElementById('folders');
 
-  // 폴더 순서 — #folders 바로 아래 .folder들의 지금 DOM 순서를 그대로 서버에 반영
-  makeDraggable(foldersEl, ':scope > .folder', async () => {
-    const order = Array.from(foldersEl.querySelectorAll(':scope > .folder')).map(el => el.dataset.folder);
-    try { await callGas('reorderFolders', { order, password: getEditPassword() }); }
-    catch (err) {
-      if (String(err.message || '').includes('비밀번호')) clearEditPassword();
-      alert('순서 저장 중 오류: ' + err.message);
-      await loadAndRender(); // 실패했으면 서버 기준으로 화면을 다시 맞춰준다
-      return;
-    }
-  });
-
-  // 폴더 안 링크 순서 — 폴더마다 각자의 .link-grid 안에서만 순서가 섞이게(다른 폴더로 못 넘어가게)
-  foldersEl.querySelectorAll('.folder .link-grid').forEach(grid => {
-    const folderEl = grid.closest('.folder');
-    const folderName = folderEl ? folderEl.dataset.folder : '';
-    makeDraggable(grid, '.link-item-wrap', async () => {
-      const order = Array.from(grid.querySelectorAll('.link-item-wrap')).map(el => el.dataset.title);
-      try { await callGas('reorderLinks', { folderName, order, password: getEditPassword() }); }
+  // ---- 폴더 순서 ----
+  Array.from(foldersEl.querySelectorAll(':scope > .folder')).forEach(el => {
+    el.setAttribute('draggable', 'true');
+    el.addEventListener('dragstart', e => {
+      if (e.target.closest('.link-item-wrap')) return; // 링크발(發) 드래그가 새어들어온 경우 대비(2중 방어)
+      draggedFolderEl = el;
+      el.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    el.addEventListener('dragend', () => { el.classList.remove('dragging'); draggedFolderEl = null; });
+    el.addEventListener('dragover', e => {
+      if (!draggedFolderEl) return; // 지금 링크를 옮기는 중이면 폴더 쪽 로직은 끼어들지 않음
+      e.preventDefault();
+      if (draggedFolderEl === el) return;
+      const rect = el.getBoundingClientRect();
+      const before = (e.clientY - rect.top) < rect.height / 2;
+      el.parentNode.insertBefore(draggedFolderEl, before ? el : el.nextSibling);
+    });
+    el.addEventListener('drop', async e => {
+      if (!draggedFolderEl) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const order = Array.from(foldersEl.querySelectorAll(':scope > .folder')).map(x => x.dataset.folder);
+      try { await callGas('reorderFolders', { order, password: getEditPassword() }); }
       catch (err) {
         if (String(err.message || '').includes('비밀번호')) clearEditPassword();
         alert('순서 저장 중 오류: ' + err.message);
+        await loadAndRender();
+      }
+    });
+  });
+
+  // ---- 링크 순서(같은 폴더 안) + 폴더 간 이동 ----
+  foldersEl.querySelectorAll('.link-item-wrap').forEach(el => {
+    el.setAttribute('draggable', 'true');
+    el.addEventListener('dragstart', e => {
+      e.stopPropagation(); // ← 핵심: 이게 없으면 조상인 .folder의 dragstart까지 발동해서 폴더째로 옮겨짐
+      draggedLinkEl = el;
+      draggedLinkOriginFolder = el.closest('.folder').dataset.folder;
+      el.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    el.addEventListener('dragend', () => {
+      el.classList.remove('dragging');
+      draggedLinkEl = null;
+      draggedLinkOriginFolder = null;
+    });
+    el.addEventListener('dragover', e => {
+      if (!draggedLinkEl || draggedLinkEl === el) return;
+      e.preventDefault();
+      e.stopPropagation(); // 밑에 깔린 .folder의 dragover(폴더 순서용)로 새지 않게
+      const rect = el.getBoundingClientRect();
+      const before = (e.clientY - rect.top) < rect.height / 2;
+      el.parentNode.insertBefore(draggedLinkEl, before ? el : el.nextSibling);
+    });
+    el.addEventListener('drop', e => { if (draggedLinkEl) { e.preventDefault(); e.stopPropagation(); } });
+  });
+
+  // 링크 그리드 자체(기존 항목 사이가 아니라 빈 공간 포함)에도 dragover/drop을 걸어서,
+  // 그 폴더에 링크가 하나도 없거나 맨 끝에 놓아도 정확히 그 폴더로 들어가게 한다.
+  // 다른 폴더에서 넘어온 링크라면 여기서 이동(moveLink), 같은 폴더면 순서변경(reorderLinks).
+  foldersEl.querySelectorAll('.link-grid').forEach(grid => {
+    grid.addEventListener('dragover', e => {
+      if (!draggedLinkEl) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (!grid.contains(draggedLinkEl)) {
+        const addBtn = grid.querySelector('.edit-add-link-btn');
+        grid.insertBefore(draggedLinkEl, addBtn || null); // 다른 폴더 그리드로 넘어온 경우 일단 맨 끝에 끼워넣기
+      }
+    });
+    grid.addEventListener('drop', async e => {
+      if (!draggedLinkEl) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const toFolder = grid.closest('.folder').dataset.folder;
+      const fromFolder = draggedLinkOriginFolder;
+      const title = draggedLinkEl.dataset.title;
+
+      try {
+        if (normalizeFolderKey(fromFolder) !== normalizeFolderKey(toFolder)) {
+          await callGas('moveLink', { fromFolder, toFolder, title, password: getEditPassword() });
+        } else {
+          const order = Array.from(grid.querySelectorAll('.link-item-wrap')).map(x => x.dataset.title);
+          await callGas('reorderLinks', { folderName: toFolder, order, password: getEditPassword() });
+        }
+        await loadAndRender();
+      } catch (err) {
+        if (String(err.message || '').includes('비밀번호')) clearEditPassword();
+        alert('처리 중 오류: ' + err.message);
         await loadAndRender();
       }
     });
